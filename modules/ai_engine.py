@@ -53,6 +53,85 @@ def call_gemini_api(prompt: str, system_instruction: str = "", api_key: str = ""
     return {"error": "NO_RESPONSE"}
 
 
+def transcribe_clip_audio(audio_path: str, api_key: str = "") -> List[Dict[str, Any]]:
+    """
+    Transcribes actual spoken words from the audio track using
+    Gemini Multimodal Audio API (or local faster-whisper if available).
+    Returns real word-by-word / phrase subtitle segments matching what was said.
+    """
+    if not os.path.exists(audio_path):
+        return []
+
+    # 1. Check for local faster-whisper
+    try:
+        from faster_whisper import WhisperModel
+        print("[AIEngine] Transcribing with local faster-whisper...")
+        model = WhisperModel("tiny", device="cuda" if config.USE_NVENC else "cpu", compute_type="float16")
+        segments, _ = model.transcribe(audio_path, word_timestamps=True)
+        results = []
+        for segment in segments:
+            for word in segment.words:
+                w_txt = word.word.strip()
+                if w_txt:
+                    results.append({
+                        "start": round(float(word.start), 2),
+                        "end": round(float(word.end), 2),
+                        "text": w_txt
+                    })
+        if results:
+            print(f"[AIEngine] faster-whisper transcribed {len(results)} words.")
+            return results
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"[AIEngine] Local faster-whisper attempt note: {e}")
+
+    # 2. Gemini Multimodal Audio API
+    key = api_key or config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+    if key:
+        import base64
+        try:
+            with open(audio_path, "rb") as f:
+                audio_bytes = f.read()
+
+            if len(audio_bytes) < 15 * 1024 * 1024:
+                b64_data = base64.b64encode(audio_bytes).decode("utf-8")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent?key={key}"
+                prompt = (
+                    "Listen to this Minecraft gameplay audio track carefully. "
+                    "Transcribe the EXACT speech, screams, reactions, and commentary spoken in the audio. "
+                    "Return ONLY a JSON list of timed subtitle segments: "
+                    '[{"start": 0.0, "end": 1.2, "text": "word phrase"}, {"start": 1.2, "end": 2.5, "text": "next phrase"}]'
+                )
+                headers = {"Content-Type": "application/json"}
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"inlineData": {"mimeType": "audio/mp3", "data": b64_data}},
+                            {"text": prompt}
+                        ]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.1,
+                        "responseMimeType": "application/json"
+                    }
+                }
+                res = requests.post(url, headers=headers, json=payload, timeout=45)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "[]")
+                        parsed = json.loads(content_text)
+                        if isinstance(parsed, list) and len(parsed) > 0:
+                            print(f"[AIEngine] Gemini Multimodal Audio API successfully transcribed {len(parsed)} real speech subtitle segments!")
+                            return parsed
+        except Exception as e:
+            print(f"[AIEngine] Gemini Audio API transcription warning: {e}")
+
+    return []
+
+
 def analyze_video_highlights_with_ai(video_info: Dict[str, Any], candidates: List[Dict[str, Any]], api_key: str = "") -> List[Dict[str, Any]]:
     """
     Sends video candidate segments to Gemini to evaluate highlights,

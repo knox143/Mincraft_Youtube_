@@ -59,12 +59,25 @@ class MinecraftShortsPipeline:
                 has_animated_subtitles=config.ENABLE_SUBTITLES,
                 has_color_grading=config.ENABLE_COLOR_GRADING
             )
-            # Merge score
-            s["viral_score"] = v_score_data["viral_score"]
-            s["virality_tier"] = v_score_data["virality_tier"]
-            s["badge"] = v_score_data["badge"]
-            s["rank_prediction"] = v_score_data["rank_prediction"]
-            s["adaptive_rules"] = get_adaptive_editing_rules(s["viral_score"])
+            # Blend Gemini's AI content score with metric analysis
+            ai_score = s.get("viral_score")
+            final_score = round((ai_score + v_score_data["viral_score"]) / 2) if ai_score else v_score_data["viral_score"]
+            s["viral_score"] = final_score
+            
+            if final_score >= config.VIRAL_SCORE_HIGH_THRESHOLD:
+                s["virality_tier"] = "High"
+                s["badge"] = "🔥 High Viral Probability"
+                s["rank_prediction"] = "High chance of getting pushed to YouTube Shorts Feed (Est. 85-115% APV)"
+            elif final_score >= config.VIRAL_SCORE_MEDIUM_THRESHOLD:
+                s["virality_tier"] = "Medium"
+                s["badge"] = "🚀 Solid Performer"
+                s["rank_prediction"] = "Good engagement, solid search rank potential for Minecraft keywords"
+            else:
+                s["virality_tier"] = "Low"
+                s["badge"] = "⚠️ Needs Optimization"
+                s["rank_prediction"] = "Pacing may cause swipe-aways; recommended to apply adaptive trimming"
+                
+            s["adaptive_rules"] = get_adaptive_editing_rules(final_score)
             results.append(s)
             
         # Sort by viral score descending
@@ -127,7 +140,8 @@ class MinecraftShortsPipeline:
                 enable_hook=config.ENABLE_HOOK_TEASER,
                 enable_subtitles=config.ENABLE_SUBTITLES,
                 enable_grading=config.ENABLE_COLOR_GRADING,
-                use_nvenc=config.USE_NVENC
+                use_nvenc=config.USE_NVENC,
+                api_key=self.api_key
             )
             
             if success:

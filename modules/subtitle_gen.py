@@ -103,9 +103,9 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: ProCaptions,{config.SUBTITLE_FONT},38,&H0000FFFF,&H000000FF,&H00000000,&H90000000,-1,0,0,0,100,100,2,0,1,4.5,2.5,2,40,40,{config.SUBTITLE_MARGIN_V},1
-Style: HookBanner,{config.SUBTITLE_FONT},42,&H00FFFFFF,&H000000FF,&H00000000,&HA0000000,-1,0,0,0,100,100,2,0,1,5.5,3.0,8,40,40,240,1
-Style: PillTag,{config.SUBTITLE_FONT},26,&H0034D399,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,3.5,1.5,8,40,40,170,1
+Style: ProCaptions,{config.SUBTITLE_FONT},80,&H0000FFFF,&H000000FF,&H00000000,&H90000000,-1,0,0,0,100,100,2,0,1,5.5,3.0,2,40,40,{config.SUBTITLE_MARGIN_V},1
+Style: HookBanner,{config.SUBTITLE_FONT},52,&H00FFFFFF,&H000000FF,&H00000000,&HA0000000,-1,0,0,0,100,100,2,0,1,6.0,3.5,8,40,40,240,1
+Style: PillTag,{config.SUBTITLE_FONT},30,&H0034D399,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,4.0,2.0,8,40,40,170,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

@@ -9,6 +9,8 @@ from typing import Dict, Any, Optional
 import config
 from modules.hook_detector import extract_hook_segment
 from modules.subtitle_gen import generate_ass_subtitles
+from modules.analyzer import extract_audio
+from modules.ai_engine import transcribe_clip_audio
 
 
 def escape_ffmpeg_filter_path(path_str: str) -> str:
@@ -21,18 +23,24 @@ def escape_ffmpeg_filter_path(path_str: str) -> str:
 def build_filter_graph(
     layout_mode: str,
     ass_path: Optional[str] = None,
-    color_grading: bool = True
+    color_grading: bool = True,
+    adaptive_rules: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     Constructs high-end transformative editing filtergraph:
     - 9:16 vertical canvas (1080x1920 @ 60fps)
     - Blurred background + cinematic lens vignette
     - Vibrant Minecraft color grading + edge sharpening
-    - Accent glowing frame lines separating blur and gameplay
+    - Accent glowing frame lines separating blur and gameplay (dynamically padded)
     - Anti-Content-ID micro-dithering (100% unique digital pixel hash)
     - Burning rapid-fire animated ASS subtitles
-    - Audio broadcast loudness mastering (-14 LUFS) + bass/treble boost + atempo micro-shift
+    - Audio broadcast loudness mastering (-14 LUFS) + bass/treble boost
+    - Synchronized A/V speedup (setpts + atempo) only if specified by adaptive rules
     """
+    rules = adaptive_rules or {}
+    speedup = float(rules.get("speedup_factor", 1.0))
+    trim_silence = bool(rules.get("trim_silence", False))
+    
     # 1. Color Grading filter string
     grading_filter = ""
     if color_grading:
@@ -53,17 +61,18 @@ def build_filter_graph(
             "eq=brightness=-0.12:contrast=0.92,"
             "vignette=PI/4[bg];"
         )
-        fg_chain = "[0:v]scale=1080:-1[fg_raw];"
+        # Even-height scaling (1080:-2) to prevent yuv420p odd-dimension crash
+        fg_chain = "[0:v]scale=1080:-2[fg_raw];"
         if grading_filter:
-            fg_chain += f"[fg_raw]{grading_filter}[fg];"
+            fg_chain += f"[fg_raw]{grading_filter}[fg_graded];"
         else:
-            fg_chain += "[fg_raw]copy[fg];"
+            fg_chain += "[fg_raw]copy[fg_graded];"
             
-        # Overlay centered gameplay + Pro framing border lines (emerald green/gold glow)
-        border_top = "drawbox=y=(1920-608)/2:w=1080:h=3:color=0x10b981@0.85:t=fill"
-        border_bottom = "drawbox=y=(1920+608)/2-3:w=1080:h=3:color=0x10b981@0.85:t=fill"
+        # Add 3px emerald accent border top and bottom dynamically using pad filter (safe for any aspect ratio!)
+        fg_chain += "[fg_graded]pad=1080:ih+6:0:3:color=0x10b981@0.85[fg];"
+            
         overlay_chain = (
-            f"[bg][fg]overlay=0:(1920-overlay_h)/2,{border_top},{border_bottom},noise=alls=1:allf=t[merged]"
+            "[bg][fg]overlay=0:(1920-overlay_h)/2,noise=alls=1:allf=t[merged]"
         )
         filter_str = bg_chain + fg_chain + overlay_chain
         last_node = "[merged]"
@@ -79,6 +88,11 @@ def build_filter_graph(
         filter_str = crop_chain
         last_node = "[cropped]"
 
+    # Apply matched video speedup if specified by adaptive rules
+    if speedup != 1.0:
+        filter_str += f";{last_node}setpts=PTS/{speedup}[v_sped]"
+        last_node = "[v_sped]"
+
     # 3. Subtitles
     if ass_path and os.path.exists(ass_path):
         escaped_ass = escape_ffmpeg_filter_path(ass_path)
@@ -86,8 +100,15 @@ def build_filter_graph(
     else:
         filter_str += f";{last_node}copy[outv]"
 
-    # 4. Anti-Reuse Audio Mastering (Broadcast -14 LUFS, Punchy Bass, Clear Treble, 1.02x Tempo)
-    filter_str += ";[0:a]loudnorm=I=-14:LRA=7:TP=-1.5,bass=g=2.5:f=110,treble=g=2:f=3500,atempo=1.02[outa]"
+    # 4. Anti-Reuse Audio Mastering (Broadcast -14 LUFS, Punchy Bass, Clear Treble)
+    audio_chain = "loudnorm=I=-14:LRA=7:TP=-1.5,bass=g=2.5:f=110,treble=g=2:f=3500"
+    if trim_silence:
+        audio_chain += ",silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-32dB"
+    if speedup != 1.0:
+        # Only apply atempo when video speed is also altered, ensuring 100% frame-perfect sync!
+        audio_chain += f",atempo={speedup}"
+        
+    filter_str += f";[0:a]{audio_chain}[outa]"
 
     return filter_str
 
@@ -100,7 +121,8 @@ def render_short_video(
     enable_hook: bool = config.ENABLE_HOOK_TEASER,
     enable_subtitles: bool = config.ENABLE_SUBTITLES,
     enable_grading: bool = config.ENABLE_COLOR_GRADING,
-    use_nvenc: bool = config.USE_NVENC
+    use_nvenc: bool = config.USE_NVENC,
+    api_key: str = ""
 ) -> bool:
     """
     Renders a single 9:16 YouTube Short:
@@ -137,6 +159,15 @@ def render_short_video(
     subprocess.run(cut_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     
     current_source = raw_clip_path
+
+    # Step A2: Real Audio Transcription for Subtitles (Whisper or Gemini Audio API)
+    if enable_subtitles and (not short_info.get("subtitles") or short_info.get("use_real_transcription", True)):
+        temp_audio_path = str(temp_dir / "clip_audio.mp3")
+        if extract_audio(raw_clip_path, temp_audio_path):
+            key = api_key or short_info.get("api_key", "")
+            real_subs = transcribe_clip_audio(temp_audio_path, api_key=key)
+            if real_subs:
+                short_info["subtitles"] = real_subs
     
     # Step B: Hook Teaser Prepending
     if enable_hook:
@@ -200,18 +231,20 @@ def render_short_video(
                     "start": float(sub.get("start", 0.0)) + hook_dur,
                     "end": float(sub.get("end", 2.0)) + hook_dur,
                     "text": sub.get("text", ""),
-                    "style": "ShortsDefault"
+                    "style": "ProCaptions"
                 })
         else:
             subs_to_render = short_info["subtitles"]
             
         generate_ass_subtitles(subs_to_render, ass_path)
 
-    # Step D: Filtergraph (9:16 layout + Color Grading + Subtitle burn-in)
+    # Step D: Filtergraph (9:16 layout + Color Grading + Subtitle burn-in + Adaptive Rules)
+    adaptive_rules = short_info.get("adaptive_rules", {})
     filter_graph = build_filter_graph(
         layout_mode=layout_mode,
         ass_path=ass_path,
-        color_grading=enable_grading
+        color_grading=enable_grading,
+        adaptive_rules=adaptive_rules
     )
     
     # Step E: Encoder Selection (GPU NVENC vs CPU x264)

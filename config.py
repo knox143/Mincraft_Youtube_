@@ -62,12 +62,12 @@ HOOK_TEXT_TEMPLATE = "WAIT FOR THE END! 💀"
 # Subtitle (Captions) Settings - MrBeast / Hormozi Style
 ENABLE_SUBTITLES = True
 SUBTITLE_FONT = "Arial"
-SUBTITLE_FONT_SIZE = 18
+SUBTITLE_FONT_SIZE = 40                 # Large, punchy mobile-readable font size
 SUBTITLE_PRIMARY_COLOR = "&H0000FFFF"   # Vibrant Yellow in BGR hex format
 SUBTITLE_OUTLINE_COLOR = "&H00000000"   # Deep Black Outline
-SUBTITLE_OUTLINE_WIDTH = 4.0
-SUBTITLE_SHADOW_OFFSET = 2.0
-SUBTITLE_MARGIN_V = 280  # Pixels from bottom (Safe zone: leaves room for YouTube Shorts title & channel name)
+SUBTITLE_OUTLINE_WIDTH = 5.0
+SUBTITLE_SHADOW_OFFSET = 3.0
+SUBTITLE_MARGIN_V = 520  # Pixels from bottom (Placed clearly above YouTube Shorts title/channel safe zone)
 
 # Virality & Ranking Scoring Criteria
 VIRAL_SCORE_HIGH_THRESHOLD = 80     # Score >= 80: High probability of viral push

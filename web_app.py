@@ -25,7 +25,7 @@ def index():
             for f in config.INPUT_DIR.glob(ext):
                 input_files.append({
                     "name": f.name,
-                    "path": str(f),
+                    "path": f.as_posix(),
                     "size_mb": round(f.stat().st_size / (1024 * 1024), 2)
                 })
                 

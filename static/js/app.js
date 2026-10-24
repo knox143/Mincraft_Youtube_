@@ -46,7 +46,12 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
     const res = await fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_path: videoPath, api_key: apiKey })
+      body: JSON.stringify({
+        video_path: videoPath,
+        api_key: apiKey,
+        target_duration: document.getElementById("durationSelect") ? document.getElementById("durationSelect").value : 30.0,
+        hook_duration: document.getElementById("hookDurationSelect") ? document.getElementById("hookDurationSelect").value : 3.5
+      })
     });
     
     const data = await res.json();

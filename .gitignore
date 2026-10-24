@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+
+# Video Media Files (prevent pushing large videos to git)
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.wmv
+*.flv
+*.webm
+
+# Pipeline Directories
+temp/
+output/*/
+input/*
+!input/.gitkeep
+!output/.gitkeep
+
+# External Cloned Repositories
+opencut/
+opencut_classic/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

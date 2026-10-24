@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Shorts AI Studio | Long-to-Shorts Pipeline</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="cube-icon">⛏️</div>
+      <div>
+        <h1>MINECRAFT SHORTS <span class="badge-ai">AI ENGINE</span></h1>
+        <p class="subtitle">Autonomous Long-to-Shorts Pipeline • Highlight Detection • Hooks • Virality Predictor</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="pill pill-gpu">⚡ GPU Accelerated (NVENC)</span>
+      <span class="pill pill-meta">⏱️ ~30s Shorts Meta</span>
+      <span class="pill pill-meta">🎣 3.5s Hook Teaser</span>
+      <span class="pill pill-opencut">✂️ OpenCut Studio Ready</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Step 1: Video Selection & Settings Card -->
+    <section class="card config-card">
+      <div class="card-header">
+        <h2>1. Select Long Minecraft Video</h2>
+        <span class="step-tag">Step 1</span>
+      </div>
+      
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Target Video Path (from <code>{{ config.input_dir }}</code> or full path):</label>
+          <div class="input-with-button">
+            <input type="text" id="videoPathInput" placeholder="D:\Youtube\Minecraft\input\gameplay.mp4" value="{% if input_files %}{{ input_files[0].path }}{% endif %}">
+            <button id="scanBtn" class="btn btn-primary">🔍 Scan & Estimate Shorts</button>
+          </div>
+          {% if input_files %}
+          <div class="file-chips">
+            <span class="chip-label">Found in input folder:</span>
+            {% for file in input_files %}
+            <button class="chip" onclick="selectVideo('{{ file.path }}')">{{ file.name }} ({{ file.size_mb }} MB)</button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="hint-text">💡 Drop your long Minecraft gameplay videos into <code>D:\Youtube\Minecraft\input\</code> to auto-detect them!</p>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label>Target Shorts Duration:</label>
+          <select id="durationSelect">
+            <option value="30.0" selected>⚡ ~30 Seconds (Recommended for New Channels - 100%+ Retention)</option>
+            <option value="25.0">⚡ ~25 Seconds (Ultra-Fast Paced)</option>
+            <option value="45.0">🔥 ~45 Seconds (Standard Story Shorts)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Hook Teaser Duration:</label>
+          <select id="hookDurationSelect">
+            <option value="3.5" selected>🎣 3.5 Seconds (Extended Climax Hook - Best for Voice/Dialogue)</option>
+            <option value="2.8">🎣 2.8 Seconds (Quick Flash Hook)</option>
+            <option value="4.5">🎣 4.5 Seconds (Full Narrative Sentence Hook)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Layout Style:</label>
+          <select id="layoutModeSelect">
+            <option value="blur_background" selected>✨ Blurred Background + Center 16:9 Gameplay (Meta Style)</option>
+            <option value="center_crop">🎯 9:16 Direct Center Crop (Action Crosshair)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Gemini API Key (Optional for Deep AI Analysis):</label>
+          <input type="password" id="apiKeyInput" placeholder="Enter Gemini API key (or uses default config)">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scan & Estimation Summary Banner -->
+    <section id="estimationSection" class="card hidden">
+      <div class="card-header">
+        <h2>2. Shorts Estimation & Virality Analysis</h2>
+        <span id="scanStatusBadge" class="pill pill-success">Analysis Complete</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-number" id="statTotalShorts">0</div>
+          <div class="stat-label">Total Shorts Found</div>
+        </div>
+        <div class="stat-box stat-highlight">
+          <div class="stat-number" id="statHighViral">0</div>
+          <div class="stat-label">🔥 High Virality Potential</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="statMediumViral">0</div>
+          <div class="stat-label">🚀 Medium Virality</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="statDuration">0m</div>
+          <div class="stat-label">Source Video Length</div>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <div>
+          <button id="renderAllBtn" class="btn btn-viral">⚡ Render All Detected Shorts</button>
+          <button id="renderTopBtn" class="btn btn-secondary">🔥 Render Top 3 Viral Only</button>
+        </div>
+        <div class="status-indicator" id="renderStatus">Ready to render</div>
+      </div>
+
+      <!-- Candidate Shorts List -->
+      <div id="candidatesList" class="candidates-container"></div>
+    </section>
+
+    <!-- Step 3: Rendered Library & Copy Metadata -->
+    <section class="card">
+      <div class="card-header">
+        <h2>3. Rendered Shorts Library & Upload Metadata</h2>
+        <span class="step-tag">Ready for YouTube</span>
+      </div>
+
+      {% if rendered_shorts %}
+      <div class="rendered-grid">
+        {% for short in rendered_shorts %}
+        <div class="rendered-card">
+          <div class="video-preview-wrapper">
+            <video controls preload="metadata" src="{{ short.video_url }}"></video>
+          </div>
+          <div class="rendered-details">
+            <h3>{{ short.metadata.primary_title or short.folder }}</h3>
+            <div class="virality-tag">🔥 Viral Score: {{ short.metadata.viral_score or 85 }}%</div>
+            
+            <div class="meta-copy-actions">
+              <button class="btn btn-sm" onclick="copyText('{{ short.metadata.primary_title }}', 'Title copied!')">📋 Copy Title</button>
+              <button class="btn btn-sm" onclick="copyText('{{ short.metadata.tags_comma_separated }}', 'Tags copied!')">🏷️ Copy Tags</button>
+              <button class="btn btn-sm" onclick="copyText(`{{ short.metadata.description }}`, 'Description copied!')">📝 Copy Desc</button>
+              {% if short.has_opencut %}
+              <a href="{{ short.opencut_url }}" class="btn btn-sm btn-opencut" title="Download OpenCut Timeline Project JSON" download>✂️ OpenCut Project</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <p>No rendered shorts yet. Scan a long video above and click Render to generate your first Shorts!</p>
+      </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden">Copied to clipboard!</div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -81,8 +81,11 @@
         </div>
 
         <div class="form-group">
-          <label>Gemini API Key (Optional for Deep AI Analysis):</label>
-          <input type="password" id="apiKeyInput" placeholder="Enter Gemini API key (or uses default config)">
+          <label>AI API Key (Optional for Auto Speech-to-Text):</label>
+          <input type="password" id="apiKeyInput" placeholder="Enter Gemini or Groq API key (Optional - CapCut has free built-in Auto Captions!)">
+          <p class="hint-text" style="margin-top: 6px; font-size: 0.82rem; color: #8b949e;">
+            💡 <strong>API Options:</strong> Gemini API (free at <a href="https://aistudio.google.com" target="_blank" style="color: #10b981;">aistudio.google.com</a>), Groq Whisper API (free at <a href="https://console.groq.com" target="_blank" style="color: #10b981;">console.groq.com</a>), or open the generated draft in <strong>CapCut Desktop</strong> for 1-click free Auto Captions!
+          </p>
         </div>
       </div>
     </section>
@@ -149,6 +152,9 @@
               <button class="btn btn-sm" onclick="copyText(`{{ short.metadata.description }}`, 'Description copied!')">📝 Copy Desc</button>
               {% if short.has_opencut %}
               <a href="{{ short.opencut_url }}" class="btn btn-sm btn-opencut" title="Download OpenCut Timeline Project JSON" download>✂️ OpenCut Project</a>
+              {% endif %}
+              {% if short.has_capcut %}
+              <span class="pill pill-success" style="font-size: 0.75rem; padding: 4px 8px; align-self: center;" title="CapCut Desktop Draft Ready">🎬 CapCut Draft Ready</span>
               {% endif %}
             </div>
           </div>

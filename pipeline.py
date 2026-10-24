@@ -16,6 +16,7 @@ from modules.virality_scorer import calculate_viral_score, get_adaptive_editing_
 from modules.metadata_gen import format_metadata_package
 from modules.video_editor import render_short_video
 from modules.opencut_bridge import generate_opencut_project
+from modules.capcut_bridge import export_capcut_draft
 
 
 class MinecraftShortsPipeline:
@@ -130,6 +131,10 @@ class MinecraftShortsPipeline:
             # Export OpenCut CapCut-compatible timeline project
             opencut_project_file = out_folder / "opencut_project.json"
             generate_opencut_project(short_data, source_video, str(opencut_project_file))
+            
+            # Export Native CapCut Desktop Draft (powered by capcut-mate engine)
+            capcut_draft_dir = out_folder / "capcut_draft"
+            export_capcut_draft(short_data, source_video, str(capcut_draft_dir))
             
             # Render video
             success = render_short_video(

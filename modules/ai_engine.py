@@ -9,13 +9,27 @@ from typing import Dict, Any, List
 import config
 
 
+def _clean_json_text(text: str) -> str:
+    """Strips markdown code fences and cleans JSON response text."""
+    t = text.strip()
+    if t.startswith("```json"):
+        t = t[7:]
+    elif t.startswith("```"):
+        t = t[3:]
+    if t.endswith("```"):
+        t = t[:-3]
+    return t.strip()
+
+
 def call_gemini_api(prompt: str, system_instruction: str = "", api_key: str = "") -> Dict[str, Any]:
-    """Calls Gemini REST API with JSON response schema."""
+    """Calls Gemini REST API with JSON response schema and fallback models."""
     key = api_key or config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
     if not key:
         return {"error": "NO_API_KEY"}
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent?key={key}"
+    models_to_try = [getattr(config, "GEMINI_MODEL", "gemini-1.5-flash"), "gemini-1.5-flash", "gemini-2.0-flash"]
+    # Remove duplicates preserving order
+    models_to_try = list(dict.fromkeys(models_to_try))
     
     headers = {"Content-Type": "application/json"}
     payload = {
@@ -34,35 +48,38 @@ def call_gemini_api(prompt: str, system_instruction: str = "", api_key: str = ""
         payload["systemInstruction"] = {
             "parts": [{"text": system_instruction}]
         }
-        
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
-        if response.status_code == 200:
-            data = response.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-                return json.loads(content_text)
-        else:
-            print(f"[AIEngine] Gemini API Error: HTTP {response.status_code} - {response.text}")
-            return {"error": f"HTTP {response.status_code}", "details": response.text}
-    except Exception as e:
-        print(f"[AIEngine] Request Exception: {e}")
-        return {"error": str(e)}
-        
+
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=45)
+            if response.status_code == 200:
+                data = response.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+                    clean = _clean_json_text(content_text)
+                    return json.loads(clean)
+            else:
+                print(f"[AIEngine] Gemini ({model_name}) HTTP {response.status_code}, trying fallback...")
+        except Exception as e:
+            print(f"[AIEngine] Gemini ({model_name}) error: {e}")
+            
     return {"error": "NO_RESPONSE"}
 
 
 def transcribe_clip_audio(audio_path: str, api_key: str = "") -> List[Dict[str, Any]]:
     """
-    Transcribes actual spoken words from the audio track using
-    Gemini Multimodal Audio API (or local faster-whisper if available).
-    Returns real word-by-word / phrase subtitle segments matching what was said.
+    Transcribes spoken words from the audio track using:
+    1. Local faster-whisper / whisper (100% offline, free)
+    2. Groq Cloud Whisper API (free, fast, whisper-large-v3-turbo)
+    3. Google Gemini Audio API (gemini-1.5-flash / gemini-2.0-flash)
+    Returns word-by-word / phrase subtitle segments matching speech.
     """
     if not os.path.exists(audio_path):
         return []
 
-    # 1. Check for local faster-whisper
+    # 1. Local faster-whisper (Offline, Free)
     try:
         from faster_whisper import WhisperModel
         print("[AIEngine] Transcribing with local faster-whisper...")
@@ -84,19 +101,52 @@ def transcribe_clip_audio(audio_path: str, api_key: str = "") -> List[Dict[str, 
     except ImportError:
         pass
     except Exception as e:
-        print(f"[AIEngine] Local faster-whisper attempt note: {e}")
+        print(f"[AIEngine] Local faster-whisper note: {e}")
 
-    # 2. Gemini Multimodal Audio API
+    # 2. Groq Cloud Whisper API (Free tier from https://console.groq.com)
+    groq_key = getattr(config, "GROQ_API_KEY", "") or os.getenv("GROQ_API_KEY", "")
+    if groq_key:
+        try:
+            print("[AIEngine] Transcribing via Groq Whisper Large V3 API...")
+            headers = {"Authorization": f"Bearer {groq_key}"}
+            with open(audio_path, "rb") as f:
+                files = {"file": (os.path.basename(audio_path), f, "audio/mpeg")}
+                data = {
+                    "model": "whisper-large-v3-turbo",
+                    "response_format": "verbose_json"
+                }
+                res = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data=data, timeout=30)
+                if res.status_code == 200:
+                    json_data = res.json()
+                    segments = json_data.get("segments", [])
+                    groq_results = []
+                    for seg in segments:
+                        txt = str(seg.get("text", "")).strip()
+                        if txt:
+                            groq_results.append({
+                                "start": round(float(seg.get("start", 0.0)), 2),
+                                "end": round(float(seg.get("end", 1.5)), 2),
+                                "text": txt
+                            })
+                    if groq_results:
+                        print(f"[AIEngine] Groq Whisper transcribed {len(groq_results)} subtitle segments!")
+                        return groq_results
+        except Exception as e:
+            print(f"[AIEngine] Groq Whisper API note: {e}")
+
+    # 3. Google Gemini Multimodal Audio API
     key = api_key or config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
     if key:
         import base64
+        models = [getattr(config, "GEMINI_MODEL", "gemini-1.5-flash"), "gemini-1.5-flash", "gemini-2.0-flash"]
+        models = list(dict.fromkeys(models))
+        
         try:
             with open(audio_path, "rb") as f:
                 audio_bytes = f.read()
 
             if len(audio_bytes) < 15 * 1024 * 1024:
                 b64_data = base64.b64encode(audio_bytes).decode("utf-8")
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent?key={key}"
                 prompt = (
                     "Listen to this Minecraft gameplay audio track carefully. "
                     "Transcribe the EXACT speech, screams, reactions, and commentary spoken in the audio. "
@@ -116,18 +166,21 @@ def transcribe_clip_audio(audio_path: str, api_key: str = "") -> List[Dict[str, 
                         "responseMimeType": "application/json"
                     }
                 }
-                res = requests.post(url, headers=headers, json=payload, timeout=45)
-                if res.status_code == 200:
-                    data = res.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "[]")
-                        parsed = json.loads(content_text)
-                        if isinstance(parsed, list) and len(parsed) > 0:
-                            print(f"[AIEngine] Gemini Multimodal Audio API successfully transcribed {len(parsed)} real speech subtitle segments!")
-                            return parsed
+                for mod in models:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key}"
+                    res = requests.post(url, headers=headers, json=payload, timeout=45)
+                    if res.status_code == 200:
+                        data = res.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "[]")
+                            clean = _clean_json_text(content_text)
+                            parsed = json.loads(clean)
+                            if isinstance(parsed, list) and len(parsed) > 0:
+                                print(f"[AIEngine] Gemini ({mod}) transcribed {len(parsed)} real speech subtitle segments!")
+                                return parsed
         except Exception as e:
-            print(f"[AIEngine] Gemini Audio API transcription warning: {e}")
+            print(f"[AIEngine] Gemini Audio API transcription note: {e}")
 
     return []
 

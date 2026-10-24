@@ -26,10 +26,14 @@ OUTPUT_DIR = _get_safe_dir(BASE_DIR / "output", "minecraft_shorts_output")
 TEMP_DIR = _get_safe_dir(BASE_DIR / "temp", "minecraft_shorts_temp")
 
 # AI & API Configuration
-# Put your Gemini API Key here or set GEMINI_API_KEY environment variable
+# Option 1: Gemini API Key (get free from https://aistudio.google.com)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 # Default Gemini Model for Multimodal / Content Analysis
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-1.5-flash"
+
+# Option 2: Groq Whisper API Key (get free from https://console.groq.com)
+# Ultra-fast speech-to-text with Whisper Large V3
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 # Video Processing Settings
 TARGET_WIDTH = 1080

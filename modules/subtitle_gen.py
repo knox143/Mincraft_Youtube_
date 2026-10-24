@@ -114,13 +114,32 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     
     # Add a subtle floating top category tag across the entire short
     if subtitles_data:
-        max_end = max(float(item.get("end", 30.0)) for item in subtitles_data)
+        valid_ends = []
+        for item in subtitles_data:
+            if isinstance(item, dict):
+                val = item.get("end")
+                try:
+                    if val is not None:
+                        valid_ends.append(float(val))
+                except (ValueError, TypeError):
+                    pass
+        max_end = max(valid_ends) if valid_ends else 30.0
         t_all_end = format_ass_time(max(30.0, max_end))
         events.append(f"Dialogue: 0,0:00:00.00,{t_all_end},PillTag,,0,0,0,,{{\\b1}}🔴 MINECRAFT HARDCORE{{\\b0}}")
     
     for item in subtitles_data:
-        start_sec = max(0.0, float(item.get("start", 0.0)))
-        end_sec = max(start_sec + 0.4, float(item.get("end", start_sec + 2.0)))
+        if not isinstance(item, dict):
+            continue
+        try:
+            start_val = item.get("start")
+            start_sec = max(0.0, float(start_val if start_val is not None else 0.0))
+        except (ValueError, TypeError):
+            start_sec = 0.0
+        try:
+            end_val = item.get("end")
+            end_sec = max(start_sec + 0.4, float(end_val if end_val is not None else (start_sec + 2.0)))
+        except (ValueError, TypeError):
+            end_sec = start_sec + 2.0
         raw_text = str(item.get("text", "")).strip().upper()
         style_name = item.get("style", "ProCaptions")
         

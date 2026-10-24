@@ -44,13 +44,15 @@ def index():
                         except Exception:
                             pass
                     has_opencut = (folder / "opencut_project.json").exists()
+                    has_capcut = (folder / "capcut_draft" / "draft_content.json").exists()
                     rendered_shorts.append({
                         "folder": folder.name,
                         "video_filename": mp4s[0].name,
                         "video_url": f"/stream/{folder.name}/{mp4s[0].name}",
                         "metadata": meta,
                         "has_opencut": has_opencut,
-                        "opencut_url": f"/api/opencut/project/{folder.name}"
+                        "opencut_url": f"/api/opencut/project/{folder.name}",
+                        "has_capcut": has_capcut
                     })
                     
     return render_template(

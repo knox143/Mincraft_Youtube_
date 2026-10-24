@@ -38,16 +38,31 @@ TARGET_FPS = 60
 USE_NVENC = True  # Uses NVIDIA GPU (GTX 1650) for fast NVENC encoding
 
 # Layout Mode:
-# 'blur_background' = Center 16:9 gameplay with blurred enlarged background (Gaming meta style)
+# 'hud_overlay'     = 2-Layer HUD Trick: 145% zoomed main gameplay + enlarged Hearts/Hotbar HUD overlay (Viral Meta)
+# 'blur_background' = Center 16:9 gameplay with blurred enlarged background
 # 'center_crop'     = Direct 9:16 vertical crop focused on the Minecraft crosshair/action
-DEFAULT_LAYOUT_MODE = "blur_background"
+DEFAULT_LAYOUT_MODE = "hud_overlay"
 
-# Color Grading Preset (Optimized for Minecraft visual vibrance on mobile screens)
+# Color Grading Preset (Enhanced for Caves, Deep Dark, and Nether Vibrancy)
 ENABLE_COLOR_GRADING = True
-COLOR_SATURATION = 1.25   # +25% saturation for vibrant blocks & armor
-COLOR_CONTRAST = 1.14     # +14% contrast for punchy shadows
-COLOR_BRIGHTNESS = 0.02   # Slight lift
+COLOR_SATURATION = 1.25   # +25% saturation for eye-catching grass, armor & lava
+COLOR_CONTRAST = 1.14     # +14% contrast for deep block shadows
+COLOR_BRIGHTNESS = 0.08   # +8% exposure lift to make dark caves & Deep Dark crystal clear
 ENABLE_SHARPENING = True  # Crisp unsharp filter for pixel-perfect block edges
+COLOR_SHARPEN = 1.20      # +20% sharpness for mobile screens
+ENABLE_VIGNETTE = True    # Subtle cinematic border focusing eyes on center crosshair
+VIGNETTE_ANGLE = "PI/5"
+
+# Anti-Copyright & Digital Fingerprint Protection
+ENABLE_ANTI_FINGERPRINT = True   # Temporal micro-dither, custom harmonic EQ & metadata wiping
+ENABLE_KEYFRAME_ZOOM = True      # Dynamic 100% to 115% rhythmic punch-in zooms to boost APV retention
+
+# Anti-Blur High-Bitrate Export Settings (Prevents pixelation during fast camera moves)
+EXPORT_VIDEO_BITRATE = "22M"     # Target 22 Mbps (20-25 Mbps YouTube recommendation)
+EXPORT_MAX_BITRATE = "25M"       # Peak 25 Mbps
+EXPORT_COLORSPACE = "bt709"      # Rec. 709 standard sRGB
+AUDIO_SAMPLE_RATE = 48000        # Broadcast standard 48 kHz
+AUDIO_BITRATE = "256k"           # High-fidelity AAC audio
 
 # Shorts Duration Settings (Optimized for new channels & maximum retention)
 TARGET_SHORT_DURATION = 30.0   # Target short duration around 30 seconds

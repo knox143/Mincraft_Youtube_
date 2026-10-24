@@ -183,9 +183,10 @@ def generate_opencut_project(
                 "blurIntensity": 5
             },
             "colorGrading": {
-                "saturation": 1.25,
-                "contrast": 1.14,
-                "brightness": 0.02
+                "saturation": getattr(config, "COLOR_SATURATION", 1.25),
+                "contrast": getattr(config, "COLOR_CONTRAST", 1.14),
+                "brightness": getattr(config, "COLOR_BRIGHTNESS", 0.08),
+                "sharpen": getattr(config, "COLOR_SHARPEN", 1.20)
             }
         },
         "scenes": [
@@ -197,13 +198,34 @@ def generate_opencut_project(
                 "tracks": {
                     "main": {
                         "id": "track-video-main",
-                        "name": "Main Gameplay Video",
+                        "name": "Layer 1: 145% Zoomed Gameplay",
                         "type": "video",
                         "muted": False,
                         "hidden": False,
                         "elements": main_elements
                     },
                     "overlay": [
+                        {
+                            "id": "track-video-hud",
+                            "name": "Layer 2: Hearts & Hotbar HUD Overlay",
+                            "type": "video",
+                            "hidden": False,
+                            "elements": [
+                                {
+                                    "id": f"elem-hud-{uuid.uuid4().hex[:6]}",
+                                    "name": "Hearts & Hotbar (Half Heart Suspense)",
+                                    "type": "video",
+                                    "sourcePath": str(source_video_path),
+                                    "startTime": 0,
+                                    "duration": total_project_duration_ticks,
+                                    "params": {
+                                        "position": {"x": 0.5, "y": 0.68},
+                                        "crop": {"bottom": 0.02, "top": 0.85, "left": 0.28, "right": 0.28},
+                                        "scale": {"x": 1.35, "y": 1.35}
+                                    }
+                                }
+                            ]
+                        },
                         {
                             "id": "track-text-captions",
                             "name": "Dynamic Subtitles & Hooks",

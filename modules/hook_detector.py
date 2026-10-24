@@ -36,11 +36,13 @@ def extract_hook_segment(
         "-ss", str(abs_hook_start),
         "-t", str(hook_duration),
         "-i", str(video_path),
+        "-af", f"afade=t=in:ss=0:d=0.06,afade=t=out:st={max(0.1, hook_duration - 0.06)}:d=0.06",
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "18",
         "-c:a", "aac",
-        "-b:a", "192k",
+        "-ar", str(getattr(config, "AUDIO_SAMPLE_RATE", 48000)),
+        "-b:a", getattr(config, "AUDIO_BITRATE", "256k"),
         "-avoid_negative_ts", "make_zero",
         str(output_hook_path)
     ]

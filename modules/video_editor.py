@@ -29,12 +29,14 @@ def build_filter_graph(
     """
     Constructs high-end transformative editing filtergraph:
     - 9:16 vertical canvas (1080x1920 @ 60fps)
-    - Blurred background + cinematic lens vignette
-    - Vibrant Minecraft color grading + edge sharpening
-    - Accent glowing frame lines separating blur and gameplay (dynamically padded)
+    - 2-Layer HUD Trick ('hud_overlay'): 145% zoomed gameplay + enlarged Hearts/Hotbar HUD overlay
+    - Blurred background meta style ('blur_background')
+    - 9:16 Action Center Crop ('center_crop')
+    - Keyframe Zooms: Dynamic 100% to 108% rhythmic punch-in zooms every 3s
+    - Vibrant Minecraft color grading (+25% sat, +14% contrast, +8% brightness, +20% sharpness, vignette)
     - Anti-Content-ID micro-dithering (100% unique digital pixel hash)
-    - Burning rapid-fire animated ASS subtitles
-    - Audio broadcast loudness mastering (-14 LUFS) + bass/treble boost
+    - Burning rapid-fire animated ASS subtitles in safe zone
+    - Audio broadcast mastering (-14 LUFS) + sub-bass sculpting & anti-pop crossfades
     - Synchronized A/V speedup (setpts + atempo) only if specified by adaptive rules
     """
     rules = adaptive_rules or {}
@@ -48,11 +50,42 @@ def build_filter_graph(
             f"eq=contrast={config.COLOR_CONTRAST}:"
             f"brightness={config.COLOR_BRIGHTNESS}:"
             f"saturation={config.COLOR_SATURATION},"
-            f"unsharp=5:5:0.9:5:5:0.0"
+            f"unsharp=5:5:{getattr(config, 'COLOR_SHARPEN', 1.20)}:5:5:0.0"
         )
 
-    # 2. Video Layout Mode
-    if layout_mode == "blur_background":
+    vignette_filter = f"vignette=angle={getattr(config, 'VIGNETTE_ANGLE', 'PI/5')}" if getattr(config, "ENABLE_VIGNETTE", True) else ""
+    anti_fp = ",noise=alls=1:allf=t" if getattr(config, "ENABLE_ANTI_FINGERPRINT", True) else ""
+
+    # 2. Video Layout Modes
+    if layout_mode == "hud_overlay":
+        # Viral 2-Layer HUD Trick:
+        # Layer 1: 145% zoomed main gameplay covering vertical canvas
+        gameplay_chain = (
+            "[0:v]crop=w=ih*9/16/1.45:h=ih/1.45:x=(iw-ow)/2:y=(ih-oh)/2-25,"
+            "scale=1080:1920:flags=lanczos"
+        )
+        if getattr(config, "ENABLE_KEYFRAME_ZOOM", True):
+            # Dynamic 100% to 108% rhythmic punch-in zoom every 3s to keep viewer retention high
+            gameplay_chain += ",zoompan=z='1+0.07*pow(sin(2*PI*in/180),2)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=60"
+        if grading_filter:
+            gameplay_chain += f",{grading_filter}"
+        if vignette_filter:
+            gameplay_chain += f",{vignette_filter}"
+        gameplay_chain += "[main_gameplay];"
+
+        # Layer 2: Extract bottom-center Minecraft HUD (Hearts, Armor, Hunger & Hotbar)
+        hud_chain = (
+            "[0:v]crop=w=min(iw\\,ih*0.72):h=ih*0.15:x=(iw-ow)/2:y=ih-oh-12,"
+            "scale=1000:-2,"
+            "pad=1000:ih+10:0:5:color=0x0d1117@0.65[hud_overlay];"
+        )
+
+        # Composite Layer 1 + Layer 2 (HUD placed right above subtitles at y=1240)
+        overlay_chain = f"[main_gameplay][hud_overlay]overlay=x=(1080-overlay_w)/2:y=1240{anti_fp}[merged]"
+        filter_str = gameplay_chain + hud_chain + overlay_chain
+        last_node = "[merged]"
+
+    elif layout_mode == "blur_background":
         # Background: Scale, heavy gaussian blur, dimmed, vignette lens
         bg_chain = (
             "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
@@ -68,23 +101,26 @@ def build_filter_graph(
         else:
             fg_chain += "[fg_raw]copy[fg_graded];"
             
-        # Add 3px emerald accent border top and bottom dynamically using pad filter (safe for any aspect ratio!)
+        # Add 3px emerald accent border top and bottom dynamically using pad filter
         fg_chain += "[fg_graded]pad=1080:ih+6:0:3:color=0x10b981@0.85[fg];"
             
-        overlay_chain = (
-            "[bg][fg]overlay=0:(1920-overlay_h)/2,noise=alls=1:allf=t[merged]"
-        )
+        overlay_chain = f"[bg][fg]overlay=0:(1920-overlay_h)/2{anti_fp}[merged]"
         filter_str = bg_chain + fg_chain + overlay_chain
         last_node = "[merged]"
+
     else:
         # Direct Center Crop (Focused on Minecraft crosshair & action)
         crop_chain = (
             "[0:v]crop=ih*9/16:ih:(iw-ow)/2:0,"
             "scale=1080:1920"
         )
+        if getattr(config, "ENABLE_KEYFRAME_ZOOM", True):
+            crop_chain += ",zoompan=z='1+0.07*pow(sin(2*PI*in/180),2)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=60"
         if grading_filter:
             crop_chain += f",{grading_filter}"
-        crop_chain += ",vignette=PI/5,noise=alls=1:allf=t[cropped]"
+        if vignette_filter:
+            crop_chain += f",{vignette_filter}"
+        crop_chain += f"{anti_fp}[cropped]"
         filter_str = crop_chain
         last_node = "[cropped]"
 
@@ -100,14 +136,22 @@ def build_filter_graph(
     else:
         filter_str += f";{last_node}copy[outv]"
 
-    # 4. Anti-Reuse Audio Mastering (Broadcast -14 LUFS, Punchy Bass, Clear Treble)
-    audio_chain = "loudnorm=I=-14:LRA=7:TP=-1.5,bass=g=2.5:f=110,treble=g=2:f=3500"
+    # 4. Anti-Copyright Audio Mastering (Broadcast -14 LUFS, Punchy Bass, Clear Treble & EQ Sculpting)
+    audio_parts = [
+        "equalizer=f=60:t=q:w=1.2:g=1.2",
+        "equalizer=f=3200:t=q:w=1.0:g=2.0",
+        "bass=g=2.2:f=110",
+        "treble=g=2.0:f=3500",
+        "loudnorm=I=-14:LRA=7:TP=-1.5",
+        "afade=t=in:ss=0:d=0.08"
+    ]
     if trim_silence:
-        audio_chain += ",silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-32dB"
+        audio_parts.append("silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-32dB")
     if speedup != 1.0:
         # Only apply atempo when video speed is also altered, ensuring 100% frame-perfect sync!
-        audio_chain += f",atempo={speedup}"
+        audio_parts.append(f"atempo={speedup}")
         
+    audio_chain = ",".join(audio_parts)
     filter_str += f";[0:a]{audio_chain}[outa]"
 
     return filter_str
@@ -148,11 +192,13 @@ def render_short_video(
         "-ss", str(start),
         "-t", str(duration),
         "-i", str(source_video),
+        "-af", f"afade=t=in:ss=0:d=0.06,afade=t=out:st={max(0.1, duration - 0.06)}:d=0.06",
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "18",
         "-c:a", "aac",
-        "-b:a", "192k",
+        "-b:a", getattr(config, "AUDIO_BITRATE", "256k"),
+        "-ar", str(getattr(config, "AUDIO_SAMPLE_RATE", 48000)),
         "-avoid_negative_ts", "make_zero",
         raw_clip_path
     ]
@@ -263,13 +309,23 @@ def render_short_video(
             "-map", "[outa]?",
             "-c:v", "h264_nvenc",
             "-preset", "p6",
-            "-cq", "21",
+            "-cq", "18",
+            "-b:v", getattr(config, "EXPORT_VIDEO_BITRATE", "22M"),
+            "-maxrate", getattr(config, "EXPORT_MAX_BITRATE", "25M"),
+            "-bufsize", "45M",
             "-rc", "vbr",
+            "-colorspace", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+            "-color_primaries", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+            "-color_trc", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+            "-color_range", "tv",
             "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "44100",
+            "-b:a", getattr(config, "AUDIO_BITRATE", "256k"),
+            "-ar", str(getattr(config, "AUDIO_SAMPLE_RATE", 48000)),
             "-pix_fmt", "yuv420p",
             "-r", str(config.TARGET_FPS),
+            "-map_metadata", "-1",
+            "-metadata", "title=",
+            "-metadata", "comment=Rendered with Minecraft Shorts Pro Engine",
             str(output_path)
         ]
         res = subprocess.run(render_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
@@ -288,12 +344,22 @@ def render_short_video(
         "-map", "[outa]?",
         "-c:v", "libx264",
         "-preset", "faster",
-        "-crf", "20",
+        "-crf", "18",
+        "-b:v", getattr(config, "EXPORT_VIDEO_BITRATE", "22M"),
+        "-maxrate", getattr(config, "EXPORT_MAX_BITRATE", "25M"),
+        "-bufsize", "45M",
+        "-colorspace", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+        "-color_primaries", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+        "-color_trc", getattr(config, "EXPORT_COLORSPACE", "bt709"),
+        "-color_range", "tv",
         "-c:a", "aac",
-        "-b:a", "192k",
-        "-ar", "44100",
+        "-b:a", getattr(config, "AUDIO_BITRATE", "256k"),
+        "-ar", str(getattr(config, "AUDIO_SAMPLE_RATE", 48000)),
         "-pix_fmt", "yuv420p",
         "-r", str(config.TARGET_FPS),
+        "-map_metadata", "-1",
+        "-metadata", "title=",
+        "-metadata", "comment=Rendered with Minecraft Shorts Pro Engine",
         str(output_path)
     ]
     cpu_res = subprocess.run(cpu_render_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

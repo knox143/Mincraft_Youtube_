@@ -81,8 +81,8 @@
         </div>
 
         <div class="form-group">
-          <label>AI API Key (Optional for Auto Speech-to-Text):</label>
-          <input type="password" id="apiKeyInput" placeholder="Enter Gemini or Groq API key (Optional - CapCut has free built-in Auto Captions!)">
+          <label>AI API Key (Gemini / Groq): {% if config.has_api_key %}<span style="color: #10b981; font-weight: normal; font-size: 0.85rem;">✅ Active (.env / Config Connected)</span>{% endif %}</label>
+          <input type="password" id="apiKeyInput" placeholder="{% if config.has_api_key %}•••••••••••••••• (Active via .env - Leave empty to use saved key){% else %}Enter Gemini or Groq API key (Optional - CapCut has free built-in Auto Captions!){% endif %}">
           <p class="hint-text" style="margin-top: 6px; font-size: 0.82rem; color: #8b949e;">
             💡 <strong>API Options:</strong> Gemini API (free at <a href="https://aistudio.google.com" target="_blank" style="color: #10b981;">aistudio.google.com</a>), Groq Whisper API (free at <a href="https://console.groq.com" target="_blank" style="color: #10b981;">console.groq.com</a>), or open the generated draft in <strong>CapCut Desktop</strong> for 1-click free Auto Captions!
           </p>

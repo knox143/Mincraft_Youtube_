@@ -87,6 +87,21 @@
             💡 <strong>API Options:</strong> Gemini API (free at <a href="https://aistudio.google.com" target="_blank" style="color: #10b981;">aistudio.google.com</a>), Groq Whisper API (free at <a href="https://console.groq.com" target="_blank" style="color: #10b981;">console.groq.com</a>), or open the generated draft in <strong>CapCut Desktop</strong> for 1-click free Auto Captions!
           </p>
         </div>
+
+        <div class="form-group" style="grid-column: span 2;">
+          <label style="display: flex; align-items: center; justify-content: space-between;">
+            <span>🧹 Storage & Memory Management:</span>
+            <span class="pill pill-success" style="font-size: 0.78rem;">Auto-Clean Old Videos Active</span>
+          </label>
+          <div style="background: rgba(22, 27, 34, 0.7); border: 1px solid var(--card-border); border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; color: #8b949e; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div>
+              ✅ <strong>Automatic Disk Cleanup:</strong> Jab bhi new long video process hogi, purani videos ke saare shorts aur temp cache automatically delete ho jayenge taaki memory clean rahe.
+            </div>
+            <button type="button" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;" onclick="cleanOldShorts()">
+              🗑️ Clean Old Shorts Now
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -130,9 +145,23 @@
 
     <!-- Step 3: Rendered Library & Copy Metadata -->
     <section class="card">
-      <div class="card-header">
-        <h2>3. Rendered Shorts Library & Upload Metadata</h2>
-        <span class="step-tag">Ready for YouTube</span>
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2>3. Rendered Shorts Library & Upload Metadata</h2>
+          {% if storage_stats and storage_stats.total_short_folders > 0 %}
+          <div style="font-size: 0.84rem; color: #8b949e; margin-top: 4px;">
+            💾 Output Disk Usage: <strong id="storageSizeDisplay" style="color: #58a6ff;">{{ storage_stats.output_size_mb }} MB</strong> ({{ storage_stats.total_short_folders }} Shorts across {{ storage_stats.video_groups|length }} video source(s))
+          </div>
+          {% endif %}
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          {% if rendered_shorts %}
+          <button type="button" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;" onclick="cleanOldShorts()" title="Deletes shorts of previous long videos to free disk memory">
+            🧹 Clean Old Shorts
+          </button>
+          {% endif %}
+          <span class="step-tag">Ready for YouTube</span>
+        </div>
       </div>
 
       {% if rendered_shorts %}

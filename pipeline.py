@@ -17,6 +17,7 @@ from modules.metadata_gen import format_metadata_package
 from modules.video_editor import render_short_video
 from modules.opencut_bridge import generate_opencut_project
 from modules.capcut_bridge import export_capcut_draft
+from modules.storage_cleaner import cleanup_old_shorts, get_storage_stats
 
 
 class MinecraftShortsPipeline:
@@ -112,6 +113,11 @@ class MinecraftShortsPipeline:
             targets = shorts_list
             
         print(f"\n🚀 Rendering {len(targets)} Shorts for '{video_stem}'...")
+        
+        # Auto-clean shorts from previous long videos to keep memory and storage clean
+        if getattr(config, "AUTO_CLEAN_OLD_SHORTS", True):
+            cleanup_old_shorts(current_source_video=source_video)
+            
         completed_shorts = []
         
         for idx, short_data in enumerate(targets, 1):
@@ -170,8 +176,15 @@ def main():
     parser.add_argument("--top", "-t", type=int, default=0, help="Generate only top N highest viral score shorts")
     parser.add_argument("--layout", "-l", choices=["blur_background", "center_crop"], default=config.DEFAULT_LAYOUT_MODE)
     parser.add_argument("--key", "-k", type=str, default="", help="Gemini API Key")
+    parser.add_argument("--clean", action="store_true", help="Delete all old video shorts and free disk space")
+    parser.add_argument("--clean-all", action="store_true", help="Purge all shorts from the output library")
     
     args = parser.parse_args()
+
+    if args.clean or args.clean_all:
+        cleanup_old_shorts(current_source_video=args.video if not args.clean_all else None, delete_current_too=args.clean_all)
+        print("Storage cleanup complete.")
+        return
     
     video_path = args.video
     if not video_path:

@@ -106,6 +106,12 @@ VIRAL_SCORE_HIGH_THRESHOLD = 80     # Score >= 80: High probability of viral pus
 VIRAL_SCORE_MEDIUM_THRESHOLD = 65   # Score 65-79: Medium-High potential
 AUTO_TRIM_SILENCE = True            # Automatically trim dead pauses > 0.7s to boost retention score
 
+# Storage & Auto-Cleanup Settings
+# Automatically delete old long videos' shorts when a new long video is processed
+AUTO_CLEAN_OLD_SHORTS = True
+# Automatically remove intermediate temporary render clips (saves ~170MB per rendered short)
+KEEP_TEMP_FILES = False
+
 # Web Server Settings
 WEB_HOST = "127.0.0.1"
 WEB_PORT = 5000

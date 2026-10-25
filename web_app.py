@@ -9,6 +9,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import config
 from pipeline import MinecraftShortsPipeline
 from modules.opencut_bridge import generate_opencut_project
+from modules.storage_cleaner import cleanup_old_shorts, get_storage_stats
 
 app = Flask(__name__)
 pipeline = MinecraftShortsPipeline()
@@ -52,13 +53,16 @@ def index():
                         "metadata": meta,
                         "has_opencut": has_opencut,
                         "opencut_url": f"/api/opencut/project/{folder.name}",
-                        "has_capcut": has_capcut
+                        "has_capcut": has_capcut,
+                        "video_stem": folder.name.split("_Short_")[0] if "_Short_" in folder.name else folder.name
                     })
                     
+    storage_stats = get_storage_stats()
     return render_template(
         "index.html",
         input_files=input_files,
         rendered_shorts=rendered_shorts,
+        storage_stats=storage_stats,
         config={
             "input_dir": str(config.INPUT_DIR),
             "output_dir": str(config.OUTPUT_DIR),
@@ -66,7 +70,8 @@ def index():
             "enable_hook": config.ENABLE_HOOK_TEASER,
             "enable_grading": config.ENABLE_COLOR_GRADING,
             "enable_subtitles": config.ENABLE_SUBTITLES,
-            "has_api_key": bool(config.GEMINI_API_KEY)
+            "has_api_key": bool(config.GEMINI_API_KEY),
+            "auto_clean_old": getattr(config, "AUTO_CLEAN_OLD_SHORTS", True)
         }
     )
 
@@ -101,7 +106,34 @@ def api_scan():
     try:
         manifest = pipeline.estimate_shorts(video_path)
         CURRENT_MANIFEST = manifest
-        return jsonify({"success": True, "manifest": manifest})
+        storage_stats = get_storage_stats()
+        return jsonify({
+            "success": True,
+            "manifest": manifest,
+            "storage_stats": storage_stats
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/cleanup", methods=["POST"])
+def api_cleanup():
+    global CURRENT_MANIFEST
+    data = request.json or {}
+    delete_all = data.get("delete_all", False)
+    current_video = data.get("current_video") or (CURRENT_MANIFEST.get("source_video") if CURRENT_MANIFEST else None)
+    
+    try:
+        cleanup_report = cleanup_old_shorts(
+            current_source_video=current_video if not delete_all else None,
+            delete_current_too=delete_all,
+            clean_temp=True
+        )
+        return jsonify({
+            "success": True,
+            "cleanup": cleanup_report,
+            "storage_stats": get_storage_stats()
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

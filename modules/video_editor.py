@@ -4,6 +4,7 @@ hook prepending, burning styled ASS subtitles, and GPU-accelerated rendering.
 """
 import subprocess
 import os
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 import config
@@ -331,6 +332,8 @@ def render_short_video(
         res = subprocess.run(render_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         if res.returncode == 0:
             print(f"[VideoEditor] GPU NVENC render finished successfully!")
+            if not getattr(config, "KEEP_TEMP_FILES", False):
+                shutil.rmtree(temp_dir, ignore_errors=True)
             return True
         else:
             print(f"[VideoEditor] NVENC failed or busy, falling back to CPU x264: {res.stderr[:200]}")
@@ -363,4 +366,10 @@ def render_short_video(
         str(output_path)
     ]
     cpu_res = subprocess.run(cpu_render_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return cpu_res.returncode == 0
+    success = (cpu_res.returncode == 0)
+    
+    # Auto-clean temporary render files to prevent disk bloating
+    if not getattr(config, "KEEP_TEMP_FILES", False):
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+    return success

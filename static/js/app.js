@@ -194,3 +194,37 @@ async function exportToOpenCut(shortId) {
     alert("Request error: " + err.message);
   }
 }
+
+async function cleanOldShorts(deleteAll = false) {
+  const currentVideo = document.getElementById("videoPathInput") ? document.getElementById("videoPathInput").value.trim() : "";
+  const confirmMsg = deleteAll 
+    ? "Are you sure you want to delete ALL rendered shorts from storage?" 
+    : "Kya aap purani long videos ke saare shorts delete karke disk memory clean karna chahte hain?";
+  
+  if (!confirm(confirmMsg)) return;
+  
+  showToast("⏳ Cleaning old video shorts and cache...");
+  try {
+    const res = await fetch("/api/cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_video: currentVideo,
+        delete_all: deleteAll
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const freed = data.cleanup.freed_mb || 0;
+      const count = data.cleanup.deleted_count || 0;
+      showToast(`🧹 Cleaned ${count} old folder(s)! Freed ${freed} MB disk space.`);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } else {
+      alert("Cleanup error: " + (data.error || "Failed"));
+    }
+  } catch (err) {
+    alert("Request error: " + err.message);
+  }
+}

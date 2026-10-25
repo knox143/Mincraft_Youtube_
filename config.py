@@ -8,6 +8,19 @@ from pathlib import Path
 # Base Paths
 BASE_DIR = Path(r"D:\Youtube\Minecraft")
 
+# Auto-load .env file if present
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    try:
+        with open(_env_file, "r", encoding="utf-8") as _ef:
+            for _line in _ef:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+    except Exception:
+        pass
+
 def _get_safe_dir(preferred: Path, fallback_subdir: str) -> Path:
     """Checks if directory is writable; falls back to system temp if permissions are restricted."""
     try:
@@ -26,10 +39,10 @@ OUTPUT_DIR = _get_safe_dir(BASE_DIR / "output", "minecraft_shorts_output")
 TEMP_DIR = _get_safe_dir(BASE_DIR / "temp", "minecraft_shorts_temp")
 
 # AI & API Configuration
-# Option 1: Gemini API Key (get free from https://aistudio.google.com)
+# Option 1: Gemini API Key (Loaded from .env or system environment)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 # Default Gemini Model for Multimodal / Content Analysis
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 # Option 2: Groq Whisper API Key (get free from https://console.groq.com)
 # Ultra-fast speech-to-text with Whisper Large V3

@@ -27,7 +27,14 @@ def call_gemini_api(prompt: str, system_instruction: str = "", api_key: str = ""
     if not key:
         return {"error": "NO_API_KEY"}
         
-    models_to_try = [getattr(config, "GEMINI_MODEL", "gemini-1.5-flash"), "gemini-1.5-flash", "gemini-2.0-flash"]
+    models_to_try = [
+        getattr(config, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash",
+        "gemini-3.8-flash"
+    ]
     # Remove duplicates preserving order
     models_to_try = list(dict.fromkeys(models_to_try))
     
@@ -138,7 +145,15 @@ def transcribe_clip_audio(audio_path: str, api_key: str = "") -> List[Dict[str, 
     key = api_key or config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
     if key:
         import base64
-        models = [getattr(config, "GEMINI_MODEL", "gemini-1.5-flash"), "gemini-1.5-flash", "gemini-2.0-flash"]
+        models = [
+            getattr(config, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-transcribe",
+            "gemini-3.5-flash",
+            "gemini-3.8-flash"
+        ]
         models = list(dict.fromkeys(models))
         
         try:

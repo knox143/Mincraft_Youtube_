@@ -2,7 +2,16 @@
 Minecraft YouTube Shorts Web Dashboard
 Flask Backend: UI controls, scanning, live progress, video streaming, and metadata copying.
 """
+import sys
 import os
+
+# Safe UTF-8 encoding for Windows terminals
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import json
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -71,7 +80,13 @@ def index():
             "enable_grading": config.ENABLE_COLOR_GRADING,
             "enable_subtitles": config.ENABLE_SUBTITLES,
             "has_api_key": bool(config.GEMINI_API_KEY),
-            "auto_clean_old": getattr(config, "AUTO_CLEAN_OLD_SHORTS", True)
+            "auto_clean_old": getattr(config, "AUTO_CLEAN_OLD_SHORTS", True),
+            "enable_troll": getattr(config, "ENABLE_TROLLFACE_EFFECT", True),
+            "troll_style": getattr(config, "TROLLFACE_STYLE", "auto"),
+            "enable_sfx": getattr(config, "ENABLE_SCENE_SFX", True),
+            "enable_bgm": getattr(config, "ENABLE_SCENE_BGM", True),
+            "voice_mode": getattr(config, "VOICEOVER_MODE", "mix_ducked"),
+            "voice_preset": getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro")
         }
     )
 
@@ -148,6 +163,30 @@ def api_render():
     if not CURRENT_MANIFEST:
         return jsonify({"success": False, "error": "No video scanned yet."}), 400
         
+    # Read Trollface, SFX, BGM, and VoiceStudio options from UI
+    enable_troll = data.get("enable_troll", getattr(config, "ENABLE_TROLLFACE_EFFECT", True))
+    troll_style = data.get("troll_style", getattr(config, "TROLLFACE_STYLE", "auto"))
+    enable_sfx = data.get("enable_sfx", getattr(config, "ENABLE_SCENE_SFX", True))
+    enable_bgm = data.get("enable_bgm", getattr(config, "ENABLE_SCENE_BGM", True))
+    voice_mode = data.get("voice_mode", getattr(config, "VOICEOVER_MODE", "mix_ducked"))
+    voice_preset = data.get("voice_preset", getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro"))
+
+    config.ENABLE_TROLLFACE_EFFECT = bool(enable_troll)
+    config.TROLLFACE_STYLE = str(troll_style)
+    config.ENABLE_SCENE_SFX = bool(enable_sfx)
+    config.ENABLE_SCENE_BGM = bool(enable_bgm)
+    config.VOICEOVER_MODE = str(voice_mode)
+    config.VOICEOVER_PRESET = str(voice_preset)
+    config.ENABLE_AI_VOICEOVER = (voice_mode in ("replace", "mix_ducked"))
+
+    for s in CURRENT_MANIFEST.get("shorts", []):
+        s["enable_troll_effect"] = config.ENABLE_TROLLFACE_EFFECT
+        s["enable_sfx"] = config.ENABLE_SCENE_SFX
+        s["enable_bgm"] = config.ENABLE_SCENE_BGM
+        s["enable_voiceover"] = config.ENABLE_AI_VOICEOVER
+        s["voiceover_mode"] = config.VOICEOVER_MODE
+        s["voiceover_preset"] = config.VOICEOVER_PRESET
+
     try:
         results = pipeline.render_pipeline(
             manifest=CURRENT_MANIFEST,

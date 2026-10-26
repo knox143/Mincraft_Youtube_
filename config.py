@@ -106,6 +106,19 @@ VIRAL_SCORE_HIGH_THRESHOLD = 80     # Score >= 80: High probability of viral pus
 VIRAL_SCORE_MEDIUM_THRESHOLD = 65   # Score 65-79: Medium-High potential
 AUTO_TRIM_SILENCE = True            # Automatically trim dead pauses > 0.7s to boost retention score
 
+# Trollface Meme & Scene FX Settings (Viral Retaining Hooks)
+ENABLE_TROLLFACE_EFFECT = True        # Automatically triggers animated Trollface overlay on surprise/fail moments
+TROLLFACE_STYLE = "auto"              # 'auto' (detects scene), 'classic', or 'phonk' (dark incident glow)
+ENABLE_SCENE_SFX = True               # Scene sound effects (Vine boom, Bruh, Creeper Hiss, Heartbeat)
+ENABLE_SCENE_BGM = True               # Dynamic background music (Phonk drift beat / Suspense buildup)
+SCENE_BGM_VOLUME = 0.20               # Balanced BGM level (-18dB to -22dB)
+
+# AI Voiceover & Voice Replacement Settings (VoiceStudio / Neural TTS)
+ENABLE_AI_VOICEOVER = False           # Generate dynamic AI commentary (Can be toggled via CLI / Web UI)
+VOICEOVER_MODE = "mix_ducked"         # 'mix_ducked' (duck game audio under AI voice), 'replace' (mute original), or 'original'
+VOICEOVER_PRESET = "hi_gamer_pro"     # 'hi_gamer_pro' (Hindi), 'en_gamer_hype' (US), 'hi_female_gamer', etc.
+VOICESTUDIO_API_URL = "http://127.0.0.1:8000"  # VoiceStudio Desktop App REST API endpoint
+
 # Storage & Auto-Cleanup Settings
 # Automatically delete old long videos' shorts when a new long video is processed
 AUTO_CLEAN_OLD_SHORTS = True

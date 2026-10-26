@@ -122,15 +122,36 @@ function displayEstimation(manifest) {
   section.scrollIntoView({ behavior: "smooth" });
 }
 
+function toggleVoiceSettings() {
+  const modeEl = document.getElementById("voiceModeSelect");
+  const group = document.getElementById("voicePresetGroup");
+  if (modeEl && group) {
+    if (modeEl.value === "original") {
+      group.style.opacity = "0.45";
+      group.style.pointerEvents = "none";
+    } else {
+      group.style.opacity = "1.0";
+      group.style.pointerEvents = "auto";
+    }
+  }
+}
+
 async function renderShortsBatch(selectedIds = null) {
   const statusEl = document.getElementById("renderStatus");
   const renderAllBtn = document.getElementById("renderAllBtn");
   const renderTopBtn = document.getElementById("renderTopBtn");
   const layoutMode = document.getElementById("layoutModeSelect").value;
   
+  const trollSelect = document.getElementById("trollEffectSelect");
+  const trollStyle = trollSelect ? trollSelect.value : "auto";
+  const voiceMode = document.getElementById("voiceModeSelect") ? document.getElementById("voiceModeSelect").value : "mix_ducked";
+  const voicePreset = document.getElementById("voicePresetSelect") ? document.getElementById("voicePresetSelect").value : "hi_gamer_pro";
+  const enableBgm = document.getElementById("enableBgmCheck") ? document.getElementById("enableBgmCheck").checked : true;
+  const enableSfx = document.getElementById("enableSfxCheck") ? document.getElementById("enableSfxCheck").checked : true;
+
   renderAllBtn.disabled = true;
   renderTopBtn.disabled = true;
-  statusEl.innerText = "⏳ Rendering 9:16 Shorts with FFmpeg GPU (NVENC)...";
+  statusEl.innerText = "⏳ Rendering 9:16 Shorts with Trollface FX, Phonk Audio & GPU NVENC...";
   
   try {
     const res = await fetch("/api/render", {
@@ -138,7 +159,13 @@ async function renderShortsBatch(selectedIds = null) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         selected_ids: selectedIds,
-        layout_mode: layoutMode
+        layout_mode: layoutMode,
+        enable_troll: (trollStyle !== "off"),
+        troll_style: trollStyle,
+        enable_bgm: enableBgm,
+        enable_sfx: enableSfx,
+        voice_mode: voiceMode,
+        voice_preset: voicePreset
       })
     });
     

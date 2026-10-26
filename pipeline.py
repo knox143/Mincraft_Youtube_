@@ -4,6 +4,14 @@ Main Pipeline Orchestrator (CLI & Backend Service)
 """
 import sys
 import os
+
+# Safe UTF-8 encoding for Windows terminals
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import argparse
 import json
 from pathlib import Path
@@ -178,6 +186,9 @@ def main():
     parser.add_argument("--key", "-k", type=str, default="", help="Gemini API Key")
     parser.add_argument("--clean", action="store_true", help="Delete all old video shorts and free disk space")
     parser.add_argument("--clean-all", action="store_true", help="Purge all shorts from the output library")
+    parser.add_argument("--troll", choices=["auto", "classic", "phonk", "off"], default="auto", help="Trollface meme overlay style")
+    parser.add_argument("--voice-mode", choices=["original", "mix_ducked", "replace"], default="mix_ducked", help="Voiceover mode")
+    parser.add_argument("--voice", choices=["hi_gamer_pro", "en_gamer_hype", "en_energetic", "hi_female_gamer", "en_deep_epic"], default="hi_gamer_pro", help="AI Voice preset")
     
     args = parser.parse_args()
 
@@ -228,6 +239,22 @@ def main():
         selected_ids = [s["short_id"] for s in sorted_shorts[:args.top]]
         print(f"🎯 Selected Top {args.top} highest viral potential shorts: {selected_ids}")
         
+    # Configure Trollface & Audio Settings from CLI
+    config.ENABLE_TROLLFACE_EFFECT = (args.troll != "off")
+    if args.troll in ("classic", "phonk"):
+        config.TROLLFACE_STYLE = args.troll
+    config.VOICEOVER_MODE = args.voice_mode
+    config.VOICEOVER_PRESET = args.voice
+    config.ENABLE_AI_VOICEOVER = (args.voice_mode != "original")
+
+    for s in manifest.get("shorts", []):
+        s["enable_troll_effect"] = config.ENABLE_TROLLFACE_EFFECT
+        s["enable_sfx"] = getattr(config, "ENABLE_SCENE_SFX", True)
+        s["enable_bgm"] = getattr(config, "ENABLE_SCENE_BGM", True)
+        s["enable_voiceover"] = config.ENABLE_AI_VOICEOVER
+        s["voiceover_mode"] = config.VOICEOVER_MODE
+        s["voiceover_preset"] = config.VOICEOVER_PRESET
+
     pipeline.render_pipeline(manifest, selected_ids=selected_ids, layout_mode=args.layout)
     print("\n🎉 Pipeline Execution Completed Successfully!")
 

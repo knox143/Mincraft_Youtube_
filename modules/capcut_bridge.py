@@ -10,8 +10,9 @@ from typing import Dict, Any, List, Optional
 import config
 from modules.pyJianYingDraft import (
     ScriptFile, TrackType, TextSegment, Timerange,
-    VideoMaterial, VideoSegment
+    VideoMaterial, VideoSegment, AudioMaterial, AudioSegment
 )
+from modules.scene_effects import detect_troll_moment
 
 # 1 second = 1,000,000 microseconds in CapCut draft format
 CAPCUT_TIME_UNIT = 1_000_000
@@ -118,7 +119,60 @@ def export_capcut_draft(
     except Exception as e:
         print(f"[CapCutBridge] HUD track note: {type(e).__name__}")
         
-    # 4. Add Subtitles / Text Track
+    # 4. Add Trollface Meme & Scene FX Tracks
+    try:
+        troll_info = detect_troll_moment(short_info, duration_sec)
+        time_offset_sec = hook_dur_sec if enable_hook else 0.0
+        
+        # 4a. Trollface Meme Track
+        meme_path = troll_info.get("meme_image_path")
+        if getattr(config, "ENABLE_TROLLFACE_EFFECT", True) and meme_path and os.path.exists(meme_path):
+            script.add_track(TrackType.video, track_name="Trollface_Meme")
+            meme_mat = VideoMaterial(meme_path)
+            troll_start_us = int((troll_info["troll_time_sec"] + time_offset_sec) * CAPCUT_TIME_UNIT)
+            troll_dur_us = int(troll_info["troll_duration_sec"] * CAPCUT_TIME_UNIT)
+            meme_seg = VideoSegment(
+                meme_mat,
+                Timerange(troll_start_us, troll_dur_us),
+                source_timerange=Timerange(0, min(getattr(meme_mat, "duration", 2_000_000) or 2_000_000, troll_dur_us))
+            )
+            meme_seg.clip_settings.scale_x = 0.55
+            meme_seg.clip_settings.scale_y = 0.55
+            meme_seg.clip_settings.transform_y = 0.08
+            script.add_segment(meme_seg, track_name="Trollface_Meme")
+
+        # 4b. Background Music (BGM) Audio Track
+        bgm_path = troll_info.get("bgm_audio_path")
+        if getattr(config, "ENABLE_SCENE_BGM", True) and bgm_path and os.path.exists(bgm_path):
+            script.add_track(TrackType.audio, track_name="BGM_Music")
+            bgm_mat = AudioMaterial(bgm_path)
+            bgm_dur_us = min(total_duration_us, bgm_mat.duration)
+            bgm_seg = AudioSegment(
+                bgm_mat,
+                Timerange(0, total_duration_us),
+                source_timerange=Timerange(0, bgm_dur_us)
+            )
+            bgm_seg.volume = getattr(config, "SCENE_BGM_VOLUME", 0.18)
+            script.add_segment(bgm_seg, track_name="BGM_Music")
+
+        # 4c. Sound Effects (SFX) Track
+        sfx_path = troll_info.get("sfx_audio_path")
+        if getattr(config, "ENABLE_SCENE_SFX", True) and sfx_path and os.path.exists(sfx_path):
+            script.add_track(TrackType.audio, track_name="SFX_Troll")
+            sfx_mat = AudioMaterial(sfx_path)
+            sfx_start_us = int((troll_info["actual_sfx_offset_sec"] if "actual_sfx_offset_sec" in troll_info else troll_info["troll_time_sec"] + time_offset_sec) * CAPCUT_TIME_UNIT)
+            sfx_dur_us = min(sfx_mat.duration, 2_000_000)
+            sfx_seg = AudioSegment(
+                sfx_mat,
+                Timerange(sfx_start_us, sfx_dur_us),
+                source_timerange=Timerange(0, sfx_dur_us)
+            )
+            sfx_seg.volume = 1.30
+            script.add_segment(sfx_seg, track_name="SFX_Troll")
+    except Exception as e:
+        print(f"[CapCutBridge] Troll / Audio FX track note: {type(e).__name__}: {e}")
+
+    # 5. Add Subtitles / Text Track
     subtitles = short_info.get("subtitles", [])
     script.add_track(TrackType.text, track_name="Captions")
     

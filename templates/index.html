@@ -72,6 +72,48 @@
         </div>
 
         <div class="form-group">
+          <label>🎭 Trollface Meme Effect:</label>
+          <select id="trollEffectSelect">
+            <option value="auto" selected>🎭 Auto-Scene Match (Classic on Fails / Phonk Glow on Clutches) [Recommended]</option>
+            <option value="classic">🤪 Classic Grinning Trollface (Zoom Punch)</option>
+            <option value="phonk">💀 Dark Phonk Incident Trollface (Glow Red)</option>
+            <option value="off">❌ Disabled (No Meme Overlay)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>🎙️ VoiceStudio AI Voiceover / Dubbing:</label>
+          <select id="voiceModeSelect" onchange="toggleVoiceSettings()">
+            <option value="mix_ducked" selected>🎙️ Mix AI Voice with Ducked Game SFX (VoiceStudio/Neural) [Recommended]</option>
+            <option value="replace">🔇 Full Voice Replacement (Mute original voice, add AI commentary + BGM)</option>
+            <option value="original">🎮 Keep Original Gameplay Audio Only (No AI Voiceover)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="voicePresetGroup">
+          <label>🗣️ AI Voice Character & Language:</label>
+          <select id="voicePresetSelect">
+            <option value="hi_gamer_pro" selected>🇮🇳 Madhur (Hindi Pro Gamer - Energetic)</option>
+            <option value="en_gamer_hype">🇺🇸 Christopher (US Gamer Hype - MrBeast Pacing)</option>
+            <option value="en_energetic">🇺🇸 Guy (US Energetic Narrator)</option>
+            <option value="hi_female_gamer">🇮🇳 Swara (Hindi Female Gamer)</option>
+            <option value="en_deep_epic">🎧 Brian (Deep Phonk Dramatic)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>🎵 Scene Music & SFX:</label>
+          <div style="display: flex; gap: 14px; align-items: center; padding-top: 8px;">
+            <label style="font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="enableBgmCheck" checked> 🎶 Phonk / Suspense BGM
+            </label>
+            <label style="font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="enableSfxCheck" checked> 💥 Vine Boom / Bruh SFX
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label>Layout Style:</label>
           <select id="layoutModeSelect">
             <option value="hud_overlay" selected>🎮 2-Layer HUD Trick (145% Zoomed Gameplay + Enlarged Hearts/Hotbar Suspense) [Recommended]</option>

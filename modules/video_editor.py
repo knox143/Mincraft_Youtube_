@@ -2,8 +2,17 @@
 Video Editor Module: FFmpeg assembly engine for 9:16 layout, color grading,
 hook prepending, burning styled ASS subtitles, and GPU-accelerated rendering.
 """
+import sys
 import subprocess
 import os
+
+# Safe UTF-8 encoding for Windows terminals
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -12,6 +21,8 @@ from modules.hook_detector import extract_hook_segment
 from modules.subtitle_gen import generate_ass_subtitles
 from modules.analyzer import extract_audio
 from modules.ai_engine import transcribe_clip_audio
+from modules.scene_effects import detect_troll_moment
+from modules.voice_studio import generate_scene_commentary_script, synthesize_voiceover
 
 
 def escape_ffmpeg_filter_path(path_str: str) -> str:
@@ -25,7 +36,11 @@ def build_filter_graph(
     layout_mode: str,
     ass_path: Optional[str] = None,
     color_grading: bool = True,
-    adaptive_rules: Optional[Dict[str, Any]] = None
+    adaptive_rules: Optional[Dict[str, Any]] = None,
+    troll_info: Optional[Dict[str, Any]] = None,
+    meme_input_idx: Optional[int] = None,
+    audio_indices: Optional[Dict[str, int]] = None,
+    voice_mode: str = "original"
 ) -> str:
     """
     Constructs high-end transformative editing filtergraph:
@@ -33,12 +48,9 @@ def build_filter_graph(
     - 2-Layer HUD Trick ('hud_overlay'): 145% zoomed gameplay + enlarged Hearts/Hotbar HUD overlay
     - Blurred background meta style ('blur_background')
     - 9:16 Action Center Crop ('center_crop')
-    - Keyframe Zooms: Dynamic 100% to 108% rhythmic punch-in zooms every 3s
-    - Vibrant Minecraft color grading (+25% sat, +14% contrast, +8% brightness, +20% sharpness, vignette)
-    - Anti-Content-ID micro-dithering (100% unique digital pixel hash)
+    - Trollface Meme Punch: Dynamic zoom overlay at detected troll/clutch moment
     - Burning rapid-fire animated ASS subtitles in safe zone
-    - Audio broadcast mastering (-14 LUFS) + sub-bass sculpting & anti-pop crossfades
-    - Synchronized A/V speedup (setpts + atempo) only if specified by adaptive rules
+    - Multi-Track Audio Mixing: Game audio + VoiceStudio AI voiceover + Phonk/Suspense BGM + Vine Boom/Bruh SFX
     """
     rules = adaptive_rules or {}
     speedup = float(rules.get("speedup_factor", 1.0))
@@ -125,35 +137,70 @@ def build_filter_graph(
         filter_str = crop_chain
         last_node = "[cropped]"
 
+    # 3. Dynamic Trollface Meme Overlay Effect
+    if troll_info and meme_input_idx is not None:
+        t_start = float(troll_info.get("actual_troll_time_sec", 15.0))
+        t_dur = float(troll_info.get("troll_duration_sec", 2.2))
+        t_end = t_start + t_dur
+        scale_expr = f"scale=eval=frame:w='560+45*sin(14*(t-{t_start:.2f}))':h=-1"
+        filter_str += f";[{meme_input_idx}:v]format=rgba,{scale_expr}[troll_scaled]"
+        filter_str += f";{last_node}[troll_scaled]overlay=x='(1080-w)/2':y='(1920-h)*0.40':enable='between(t,{t_start:.2f},{t_end:.2f})'[with_troll]"
+        last_node = "[with_troll]"
+
     # Apply matched video speedup if specified by adaptive rules
     if speedup != 1.0:
         filter_str += f";{last_node}setpts=PTS/{speedup}[v_sped]"
         last_node = "[v_sped]"
 
-    # 3. Subtitles
+    # 4. Subtitles
     if ass_path and os.path.exists(ass_path):
         escaped_ass = escape_ffmpeg_filter_path(ass_path)
         filter_str += f";{last_node}ass='{escaped_ass}'[outv]"
     else:
         filter_str += f";{last_node}copy[outv]"
 
-    # 4. Anti-Copyright Audio Mastering (Broadcast -14 LUFS, Punchy Bass, Clear Treble & EQ Sculpting)
-    audio_parts = [
-        "equalizer=f=60:t=q:w=1.2:g=1.2",
-        "equalizer=f=3200:t=q:w=1.0:g=2.0",
-        "bass=g=2.2:f=110",
-        "treble=g=2.0:f=3500",
-        "loudnorm=I=-14:LRA=7:TP=-1.5",
-        "afade=t=in:ss=0:d=0.08"
-    ]
-    if trim_silence:
-        audio_parts.append("silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-32dB")
-    if speedup != 1.0:
-        # Only apply atempo when video speed is also altered, ensuring 100% frame-perfect sync!
-        audio_parts.append(f"atempo={speedup}")
-        
-    audio_chain = ",".join(audio_parts)
-    filter_str += f";[0:a]{audio_chain}[outa]"
+    # 5. Multi-Track Audio Mixing (Game SFX + AI Voiceover + Phonk/Suspense BGM + Vine Boom SFX)
+    mix_sources = []
+    
+    # Track 1: Original Minecraft Gameplay Audio
+    if voice_mode == "replace":
+        # Mute original video voice completely
+        filter_str += ";[0:a]volume=0.0[game_a]"
+    elif voice_mode == "mix_ducked":
+        # Duck original gameplay audio under the new AI commentary voice
+        filter_str += ";[0:a]volume=0.35,highpass=f=80,equalizer=f=60:t=q:w=1.2:g=1.2[game_a]"
+    else:
+        # Keep original audio at broadcast standards
+        filter_str += ";[0:a]equalizer=f=60:t=q:w=1.2:g=1.2,equalizer=f=3200:t=q:w=1.0:g=2.0,bass=g=2.2:f=110,treble=g=2.0:f=3500,loudnorm=I=-14:LRA=7:TP=-1.5,afade=t=in:ss=0:d=0.08[game_a]"
+    mix_sources.append("[game_a]")
+
+    if audio_indices:
+        # Track 2: Background Music (BGM - Phonk Drift / Suspense)
+        if "bgm" in audio_indices:
+            b_idx = audio_indices["bgm"]
+            bgm_vol = getattr(config, "SCENE_BGM_VOLUME", 0.18)
+            filter_str += f";[{b_idx}:a]aloop=loop=-1:size=2e+09,volume={bgm_vol},bass=g=2.5:f=90[bgm_a]"
+            mix_sources.append("[bgm_a]")
+
+        # Track 3: Sound Effect (Vine Boom / Bruh / Creeper Hiss at troll moment)
+        if "sfx" in audio_indices and troll_info:
+            s_idx = audio_indices["sfx"]
+            delay_ms = int(max(0.0, troll_info.get("actual_sfx_offset_sec", 0.0)) * 1000)
+            filter_str += f";[{s_idx}:a]adelay={delay_ms}|{delay_ms},volume=1.35[sfx_a]"
+            mix_sources.append("[sfx_a]")
+
+        # Track 4: VoiceStudio AI Voiceover / Dubbing
+        if "vo" in audio_indices:
+            v_idx = audio_indices["vo"]
+            filter_str += f";[{v_idx}:a]volume=1.35,loudnorm=I=-14:TP=-1.5[vo_a]"
+            mix_sources.append("[vo_a]")
+
+    if len(mix_sources) > 1:
+        filter_str += f";{''.join(mix_sources)}amix=inputs={len(mix_sources)}:duration=first:dropout_transition=2,volume=1.2[outa]"
+    else:
+        filter_str += ";[game_a]copy[outa]"
+
+    return filter_str
 
     return filter_str
 
@@ -285,13 +332,76 @@ def render_short_video(
             
         generate_ass_subtitles(subs_to_render, ass_path)
 
-    # Step D: Filtergraph (9:16 layout + Color Grading + Subtitle burn-in + Adaptive Rules)
+    # Step D: Filtergraph & Scene FX (Trollface Overlay + Phonk/Suspense BGM + SFX + AI Voiceover)
     adaptive_rules = short_info.get("adaptive_rules", {})
+    
+    enable_troll = short_info.get("enable_troll_effect", getattr(config, "ENABLE_TROLLFACE_EFFECT", True))
+    enable_sfx = short_info.get("enable_sfx", getattr(config, "ENABLE_SCENE_SFX", True))
+    enable_bgm = short_info.get("enable_bgm", getattr(config, "ENABLE_SCENE_BGM", True))
+    enable_vo = short_info.get("enable_voiceover", getattr(config, "ENABLE_AI_VOICEOVER", False))
+    vo_mode = short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "mix_ducked"))
+    vo_preset = short_info.get("voiceover_preset", getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro"))
+
+    troll_info = detect_troll_moment(short_info, duration)
+    hook_shift = config.HOOK_DURATION_SEC if enable_hook else 0.0
+    troll_info["actual_troll_time_sec"] = troll_info["troll_time_sec"] + hook_shift
+    troll_info["actual_sfx_offset_sec"] = troll_info["sfx_offset_sec"] + hook_shift
+
+    cfg_style = getattr(config, "TROLLFACE_STYLE", "auto")
+    if cfg_style == "phonk":
+        troll_info["meme_image_path"] = str(config.BASE_DIR / "assets" / "memes" / "trollface_phonk.png")
+    elif cfg_style == "classic":
+        troll_info["meme_image_path"] = str(config.BASE_DIR / "assets" / "memes" / "trollface.png")
+
+    extra_ffmpeg_inputs = []
+    current_input_idx = 1
+    meme_idx = None
+    audio_indices = {}
+
+    # 1. Trollface Meme input
+    if enable_troll and os.path.exists(troll_info["meme_image_path"]):
+        extra_ffmpeg_inputs.extend(["-i", str(troll_info["meme_image_path"])])
+        meme_idx = current_input_idx
+        current_input_idx += 1
+        print(f"[VideoEditor] 🎭 Trollface meme effect armed at {troll_info['actual_troll_time_sec']}s!")
+
+    # 2. BGM input
+    if enable_bgm and os.path.exists(troll_info["bgm_audio_path"]):
+        extra_ffmpeg_inputs.extend(["-i", str(troll_info["bgm_audio_path"])])
+        audio_indices["bgm"] = current_input_idx
+        current_input_idx += 1
+        print(f"[VideoEditor] 🎵 BGM armed: {Path(troll_info['bgm_audio_path']).name}")
+
+    # 3. SFX input
+    if enable_sfx and os.path.exists(troll_info["sfx_audio_path"]):
+        extra_ffmpeg_inputs.extend(["-i", str(troll_info["sfx_audio_path"])])
+        audio_indices["sfx"] = current_input_idx
+        current_input_idx += 1
+        print(f"[VideoEditor] 💥 Scene SFX armed: {Path(troll_info['sfx_audio_path']).name} at {troll_info['actual_sfx_offset_sec']}s")
+
+    # 4. VoiceStudio AI Voiceover
+    if enable_vo:
+        vo_script = short_info.get("voiceover_script") or ""
+        if not vo_script:
+            vo_script = generate_scene_commentary_script(short_info, api_key=api_key)
+        if vo_script:
+            vo_file = str(temp_dir / "ai_voiceover.mp3")
+            synthesize_voiceover(vo_script, voice_key=vo_preset, output_audio_path=vo_file)
+            if os.path.exists(vo_file):
+                extra_ffmpeg_inputs.extend(["-i", str(vo_file)])
+                audio_indices["vo"] = current_input_idx
+                current_input_idx += 1
+                print(f"[VideoEditor] 🎙️ VoiceStudio AI Voiceover armed: '{vo_script}'")
+
     filter_graph = build_filter_graph(
         layout_mode=layout_mode,
         ass_path=ass_path,
         color_grading=enable_grading,
-        adaptive_rules=adaptive_rules
+        adaptive_rules=adaptive_rules,
+        troll_info=troll_info if enable_troll else None,
+        meme_input_idx=meme_idx,
+        audio_indices=audio_indices,
+        voice_mode=vo_mode if enable_vo else "original"
     )
     
     # Step E: Encoder Selection (GPU NVENC vs CPU x264)
@@ -305,6 +415,7 @@ def render_short_video(
         render_cmd = [
             "ffmpeg", "-y",
             "-i", str(current_source),
+            *extra_ffmpeg_inputs,
             "-filter_complex", filter_graph,
             "-map", "[outv]",
             "-map", "[outa]?",
@@ -342,6 +453,7 @@ def render_short_video(
     cpu_render_cmd = [
         "ffmpeg", "-y",
         "-i", str(current_source),
+        *extra_ffmpeg_inputs,
         "-filter_complex", filter_graph,
         "-map", "[outv]",
         "-map", "[outa]?",

@@ -116,7 +116,8 @@ SCENE_BGM_VOLUME = 0.20               # Balanced BGM level (-18dB to -22dB)
 # AI Voiceover & Voice Replacement Settings (VoiceStudio / Neural TTS)
 ENABLE_AI_VOICEOVER = False           # Generate dynamic AI commentary (Can be toggled via CLI / Web UI)
 VOICEOVER_MODE = "mix_ducked"         # 'mix_ducked' (duck game audio under AI voice), 'replace' (mute original), or 'original'
-VOICEOVER_PRESET = "hi_gamer_pro"     # 'hi_gamer_pro' (Hindi), 'en_gamer_hype' (US), 'hi_female_gamer', etc.
+VOICEOVER_PRESET = "en_andrew_hype"   # Fast, ultra-natural English Minecraft YouTuber voice (Andrew)
+VOICEOVER_SPEED = "+24%"              # Energetic Shorts pacing (no slow or robotic speech)
 VOICESTUDIO_API_URL = "http://127.0.0.1:8000"  # VoiceStudio Desktop App REST API endpoint
 
 # Storage & Auto-Cleanup Settings

@@ -188,7 +188,7 @@ def main():
     parser.add_argument("--clean-all", action="store_true", help="Purge all shorts from the output library")
     parser.add_argument("--troll", choices=["auto", "classic", "phonk", "off"], default="auto", help="Trollface meme overlay style")
     parser.add_argument("--voice-mode", choices=["original", "mix_ducked", "replace"], default="mix_ducked", help="Voiceover mode")
-    parser.add_argument("--voice", choices=["hi_gamer_pro", "en_gamer_hype", "en_energetic", "hi_female_gamer", "en_deep_epic"], default="hi_gamer_pro", help="AI Voice preset")
+    parser.add_argument("--voice", choices=["en_andrew_hype", "en_brian_viral", "en_chris_fast", "en_ryan_uk", "hi_gamer_pro"], default="en_andrew_hype", help="AI Voice preset")
     
     args = parser.parse_args()
 

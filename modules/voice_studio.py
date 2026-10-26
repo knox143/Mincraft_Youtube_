@@ -17,47 +17,48 @@ from modules.ai_engine import call_gemini_api
 
 
 VOICE_PRESETS = {
-    "en_gamer_hype": {
-        "name": "Christopher (US Gamer Hype)",
+    "en_andrew_hype": {
+        "name": "Andrew (US Energetic Streamer - Ultra Natural)",
+        "edge_voice": "en-US-AndrewMultilingualNeural",
+        "rate": "+24%",
+        "pitch": "+1Hz"
+    },
+    "en_brian_viral": {
+        "name": "Brian (Viral Shorts Narrator)",
+        "edge_voice": "en-US-BrianMultilingualNeural",
+        "rate": "+22%",
+        "pitch": "+0Hz"
+    },
+    "en_chris_fast": {
+        "name": "Christopher (Fast Paced Gamer)",
         "edge_voice": "en-US-ChristopherNeural",
-        "rate": "+10%",
+        "rate": "+25%",
         "pitch": "+2Hz"
     },
-    "en_energetic": {
-        "name": "Guy (US Energetic Narrator)",
-        "edge_voice": "en-US-GuyNeural",
-        "rate": "+8%",
-        "pitch": "+0Hz"
+    "en_ryan_uk": {
+        "name": "Ryan (UK Gaming Commentary)",
+        "edge_voice": "en-GB-RyanNeural",
+        "rate": "+22%",
+        "pitch": "+1Hz"
     },
     "hi_gamer_pro": {
         "name": "Madhur (Hindi Pro Gamer)",
         "edge_voice": "hi-IN-MadhurNeural",
-        "rate": "+12%",
+        "rate": "+22%",
         "pitch": "+1Hz"
-    },
-    "hi_female_gamer": {
-        "name": "Swara (Hindi Energetic)",
-        "edge_voice": "hi-IN-SwaraNeural",
-        "rate": "+10%",
-        "pitch": "+0Hz"
-    },
-    "en_deep_epic": {
-        "name": "Brian (Deep Dramatic / Phonk)",
-        "edge_voice": "en-US-BrianMultilingualNeural",
-        "rate": "+0%",
-        "pitch": "-4Hz"
     }
 }
 
 
 def generate_scene_commentary_script(
     short_info: Dict[str, Any],
-    language: str = "hinglish",
-    style: str = "energetic_gaming",
+    language: str = "english",
+    style: str = "fast_energetic_gamer",
     api_key: str = ""
 ) -> str:
     """
-    Generates a high-retention 15-25 word voiceover script tailored to the Minecraft scene.
+    Generates a high-energy, fast-paced 15-25 word English voiceover commentary for the Minecraft scene.
+    Written in the authentic conversational style of top Minecraft YouTubers (Camman18, TommyInnit, Dream).
     Optimized for high APV (Average Percentage Viewed) on YouTube Shorts.
     """
     title = short_info.get("highlight_title", "Insane Minecraft Moment")
@@ -66,21 +67,23 @@ def generate_scene_commentary_script(
     is_troll = short_info.get("is_troll_moment", True)
 
     prompt = f"""
-Write an ULTRA HIGH RETENTION YouTube Shorts voiceover commentary for this Minecraft clip:
+Write an ULTRA HIGH RETENTION, ENERGETIC ENGLISH YouTube Shorts commentary for this Minecraft gameplay clip:
 - Highlight Theme: {title}
 - Hook: {hook}
 - Clip Duration: {duration} seconds
-- Scene Type: {"Troll/Clutch surprise moment" if is_troll else "Epic Action moment"}
-- Language: {language} (e.g. natural energetic Hinglish gamer or English hype)
-- Style: {style} (Excited YouTuber, dramatic buildup, funny troll reaction)
+- Scene Type: {"Surprise Troll / Funny Fail Moment" if is_troll else "Insane Clutch Play"}
+- Language: Fast, casual, authentic ENGLISH (like a real excited streamer on Twitch/YouTube).
+- Tone: Hype, punchy, conversational, and energetic. Absolutely NO robotic or textbook phrases!
 
 Rules:
-1. Length: Exactly 2 to 3 punchy sentences (around 20-35 words total).
-2. Start with an immediate curiosity hook ("Bhai ye dekho kya hua..." or "Bro thought he was completely safe...").
-3. End with suspense or funny punchline right as the troll / clutch hits.
-4. Return ONLY the plain spoken text without quotes or stage directions.
+1. Pacing & Punctuation: Use natural speech with hyphens and exclamation marks so the voice synthesizes with real human excitement!
+2. Hook: Start immediately with curiosity: "Bro really thought he was safe...", "Wait, look at this Creeper right here...", or "No way this just happened!"
+3. Climax: Build fast suspense ending with: "Wait for it... BOOM!" or "And then THIS happened!"
+4. Length: Exactly 18 to 28 words total (snappy, fast, 0% boring delay).
+5. Return ONLY the plain spoken English words without quotes, brackets, or emojis.
 """
     ai_resp = call_gemini_api(prompt, api_key=api_key)
+    script = ""
     if isinstance(ai_resp, dict) and "text" in ai_resp and ai_resp["text"]:
         script = ai_resp["text"].strip()
     elif isinstance(ai_resp, dict) and "candidates" in ai_resp:
@@ -88,21 +91,13 @@ Rules:
             script = ai_resp["candidates"][0]["content"]["parts"][0]["text"].strip()
         except Exception:
             script = ""
-    else:
-        script = ""
 
-    # Fallback high-retention gaming templates if AI is offline
-    if not script or len(script) < 10:
-        if "hi" in language.lower():
-            if is_troll:
-                script = "Bhai ye banda soch raha tha ye bilkul safe hai... Par aage jo iske sath hua na, bhai ka reaction dekhne layaq tha! WAIT FOR THE END!"
-            else:
-                script = "Bhai ye Minecraft ka ab tak ka sabse insane clutch hone wala hai! Dhyan se dekhna... Aur ye BOOM!"
+    # High-retention English gaming fallbacks if offline
+    if not script or len(script) < 10 or ("bhai" in script.lower() and language == "english"):
+        if is_troll:
+            script = "Bro really thought he was completely invincible right here! But wait till you see what snuck up behind him! WAIT FOR IT!"
         else:
-            if is_troll:
-                script = "Bro thought he was completely invincible right here... But watch closely what snuck up behind him! WAIT FOR IT!"
-            else:
-                script = "This is officially one of the most insane clutch plays in Minecraft history! Watch the crosshair... BOOM!"
+            script = "This is easily one of the craziest clutch plays in Minecraft history! Watch the crosshair closely... BOOM!"
 
     return script.strip('"').strip("'")
 
@@ -115,7 +110,7 @@ async def _synthesize_edge_tts(text: str, voice: str, rate: str, pitch: str, out
 
 def synthesize_voiceover(
     text: str,
-    voice_key: str = "en_gamer_hype",
+    voice_key: str = "en_andrew_hype",
     output_audio_path: str = None,
     voicestudio_url: str = "http://127.0.0.1:8000"
 ) -> Optional[str]:
@@ -134,7 +129,7 @@ def synthesize_voiceover(
     # 1. Check VoiceStudio Local API (https://github.com/debpalash/VoiceStudio)
     try:
         vs_endpoint = f"{voicestudio_url.rstrip('/')}/api/tts/generate"
-        payload = {"text": text, "speed": 1.1, "format": "mp3"}
+        payload = {"text": text, "speed": 1.22, "format": "mp3"}
         resp = requests.post(vs_endpoint, json=payload, timeout=2.0)
         if resp.status_code == 200:
             with open(output_audio_path, "wb") as f:
@@ -145,13 +140,13 @@ def synthesize_voiceover(
         pass  # VoiceStudio not running locally, seamlessly fallback to Edge-TTS
 
     # 2. High-Quality Edge Neural TTS Engine (Free, built-in, fast)
-    preset = VOICE_PRESETS.get(voice_key, VOICE_PRESETS["en_gamer_hype"])
-    edge_voice = preset.get("edge_voice", "en-US-ChristopherNeural")
-    rate = preset.get("rate", "+10%")
-    pitch = preset.get("pitch", "+0Hz")
+    preset = VOICE_PRESETS.get(voice_key, VOICE_PRESETS["en_andrew_hype"])
+    edge_voice = preset.get("edge_voice", "en-US-AndrewMultilingualNeural")
+    rate = preset.get("rate", getattr(config, "VOICEOVER_SPEED", "+24%"))
+    pitch = preset.get("pitch", "+1Hz")
 
     try:
-        print(f"[VoiceStudio] Synthesizing speech with {preset['name']}...")
+        print(f"[VoiceStudio] Synthesizing energetic speech with {preset['name']} ({edge_voice} at {rate})...")
         asyncio.run(_synthesize_edge_tts(text, edge_voice, rate, pitch, output_audio_path))
         if os.path.exists(output_audio_path) and os.path.getsize(output_audio_path) > 1000:
             print(f"[VoiceStudio] Speech generated successfully: {output_audio_path}")
@@ -199,9 +194,9 @@ def prepare_dubbed_audio(
     has_vo = voiceover_path and os.path.exists(voiceover_path)
     if has_vo:
         inputs.extend(["-i", str(voiceover_path)])
-        # AI Voiceover: Loud, punchy, compressed broadcast curve (at 0dB)
+        # AI Voiceover: Studio Streamer Vocal Chain (Warm chest resonance, crisp clarity, broadcast limiter)
         vo_idx = current_stream_idx
-        filter_parts.append(f"[{vo_idx}:a]volume=1.35,loudnorm=I=-14:TP=-1.5[vo_a];")
+        filter_parts.append(f"[{vo_idx}:a]highpass=f=85,equalizer=f=120:t=q:w=1.2:g=2.5,equalizer=f=3400:t=q:w=1.0:g=3.0,compand=attacks=0.02:decays=0.1:points=-60/-60|-24/-12|0/-1:gain=2,loudnorm=I=-13:TP=-1.0[vo_a];")
         mix_sources.append("[vo_a]")
         current_stream_idx += 1
 

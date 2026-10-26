@@ -86,7 +86,7 @@ def index():
             "enable_sfx": getattr(config, "ENABLE_SCENE_SFX", True),
             "enable_bgm": getattr(config, "ENABLE_SCENE_BGM", True),
             "voice_mode": getattr(config, "VOICEOVER_MODE", "mix_ducked"),
-            "voice_preset": getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro")
+            "voice_preset": getattr(config, "VOICEOVER_PRESET", "en_andrew_hype")
         }
     )
 
@@ -169,7 +169,7 @@ def api_render():
     enable_sfx = data.get("enable_sfx", getattr(config, "ENABLE_SCENE_SFX", True))
     enable_bgm = data.get("enable_bgm", getattr(config, "ENABLE_SCENE_BGM", True))
     voice_mode = data.get("voice_mode", getattr(config, "VOICEOVER_MODE", "mix_ducked"))
-    voice_preset = data.get("voice_preset", getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro"))
+    voice_preset = data.get("voice_preset", getattr(config, "VOICEOVER_PRESET", "en_andrew_hype"))
 
     config.ENABLE_TROLLFACE_EFFECT = bool(enable_troll)
     config.TROLLFACE_STYLE = str(troll_style)

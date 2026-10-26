@@ -189,18 +189,16 @@ def build_filter_graph(
             filter_str += f";[{s_idx}:a]adelay={delay_ms}|{delay_ms},volume=1.35[sfx_a]"
             mix_sources.append("[sfx_a]")
 
-        # Track 4: VoiceStudio AI Voiceover / Dubbing
+        # Track 4: VoiceStudio AI Voiceover / Dubbing (Studio Streamer Mic Chain)
         if "vo" in audio_indices:
             v_idx = audio_indices["vo"]
-            filter_str += f";[{v_idx}:a]volume=1.35,loudnorm=I=-14:TP=-1.5[vo_a]"
+            filter_str += f";[{v_idx}:a]highpass=f=85,equalizer=f=120:t=q:w=1.2:g=2.5,equalizer=f=3400:t=q:w=1.0:g=3.0,compand=attacks=0.02:decays=0.1:points=-60/-60|-24/-12|0/-1:gain=2,loudnorm=I=-13:TP=-1.0[vo_a]"
             mix_sources.append("[vo_a]")
 
     if len(mix_sources) > 1:
         filter_str += f";{''.join(mix_sources)}amix=inputs={len(mix_sources)}:duration=first:dropout_transition=2,volume=1.2[outa]"
     else:
         filter_str += ";[game_a]copy[outa]"
-
-    return filter_str
 
     return filter_str
 
@@ -340,7 +338,7 @@ def render_short_video(
     enable_bgm = short_info.get("enable_bgm", getattr(config, "ENABLE_SCENE_BGM", True))
     enable_vo = short_info.get("enable_voiceover", getattr(config, "ENABLE_AI_VOICEOVER", False))
     vo_mode = short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "mix_ducked"))
-    vo_preset = short_info.get("voiceover_preset", getattr(config, "VOICEOVER_PRESET", "hi_gamer_pro"))
+    vo_preset = short_info.get("voiceover_preset", getattr(config, "VOICEOVER_PRESET", "en_andrew_hype"))
 
     troll_info = detect_troll_moment(short_info, duration)
     hook_shift = config.HOOK_DURATION_SEC if enable_hook else 0.0

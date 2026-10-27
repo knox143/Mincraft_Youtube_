@@ -156,6 +156,30 @@ def generate_opencut_project(
         }
     ]
     
+    # 3b. English AI Voiceover Track
+    audio_tracks = []
+    vo_path = short_info.get("voiceover_audio_path")
+    if not vo_path:
+        cand_vo = Path(output_project_path).parent / "ai_voiceover.mp3"
+        if cand_vo.exists():
+            vo_path = str(cand_vo)
+    if vo_path and Path(vo_path).exists():
+        audio_tracks.append({
+            "id": "track-audio-vo",
+            "name": "🎙️ AI English Voiceover",
+            "type": "audio",
+            "volume": 1.35,
+            "elements": [
+                {
+                    "id": f"elem-vo-{uuid.uuid4().hex[:6]}",
+                    "name": "English Streamer Voiceover",
+                    "sourcePath": str(vo_path),
+                    "startTime": 0,
+                    "duration": total_project_duration_ticks
+                }
+            ]
+        })
+
     # 4. Construct OpenCut Project Schema
     total_project_duration_ticks = hook_ticks + clip_ticks
     scene_id = f"scene-{uuid.uuid4().hex[:6]}"
@@ -200,7 +224,7 @@ def generate_opencut_project(
                         "id": "track-video-main",
                         "name": "Layer 1: 145% Zoomed Gameplay",
                         "type": "video",
-                        "muted": False,
+                        "muted": (short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "replace")) == "replace"),
                         "hidden": False,
                         "elements": main_elements
                     },
@@ -234,7 +258,7 @@ def generate_opencut_project(
                             "elements": text_elements
                         }
                     ],
-                    "audio": []
+                    "audio": audio_tracks
                 },
                 "createdAt": now_iso,
                 "updatedAt": now_iso

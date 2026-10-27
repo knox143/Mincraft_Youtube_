@@ -336,9 +336,11 @@ def render_short_video(
     enable_troll = short_info.get("enable_troll_effect", getattr(config, "ENABLE_TROLLFACE_EFFECT", True))
     enable_sfx = short_info.get("enable_sfx", getattr(config, "ENABLE_SCENE_SFX", True))
     enable_bgm = short_info.get("enable_bgm", getattr(config, "ENABLE_SCENE_BGM", True))
-    enable_vo = short_info.get("enable_voiceover", getattr(config, "ENABLE_AI_VOICEOVER", False))
-    vo_mode = short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "mix_ducked"))
+    enable_vo = short_info.get("enable_voiceover", getattr(config, "ENABLE_AI_VOICEOVER", True))
+    vo_mode = short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "replace"))
     vo_preset = short_info.get("voiceover_preset", getattr(config, "VOICEOVER_PRESET", "en_andrew_hype"))
+    if not vo_preset or vo_preset.startswith("hi_"):
+        vo_preset = "en_andrew_hype"
 
     troll_info = detect_troll_moment(short_info, duration)
     hook_shift = config.HOOK_DURATION_SEC if enable_hook else 0.0
@@ -379,17 +381,19 @@ def render_short_video(
 
     # 4. VoiceStudio AI Voiceover
     if enable_vo:
-        vo_script = short_info.get("voiceover_script") or ""
-        if not vo_script:
-            vo_script = generate_scene_commentary_script(short_info, api_key=api_key)
-        if vo_script:
-            vo_file = str(temp_dir / "ai_voiceover.mp3")
-            synthesize_voiceover(vo_script, voice_key=vo_preset, output_audio_path=vo_file)
-            if os.path.exists(vo_file):
-                extra_ffmpeg_inputs.extend(["-i", str(vo_file)])
-                audio_indices["vo"] = current_input_idx
-                current_input_idx += 1
-                print(f"[VideoEditor] 🎙️ VoiceStudio AI Voiceover armed: '{vo_script}'")
+        vo_file = short_info.get("voiceover_audio_path")
+        if not vo_file or not os.path.exists(vo_file):
+            vo_script = short_info.get("voiceover_script") or ""
+            if not vo_script:
+                vo_script = generate_scene_commentary_script(short_info, api_key=api_key)
+            if vo_script:
+                vo_file = str(temp_dir / "ai_voiceover.mp3")
+                synthesize_voiceover(vo_script, voice_key=vo_preset, output_audio_path=vo_file)
+        if vo_file and os.path.exists(vo_file):
+            extra_ffmpeg_inputs.extend(["-i", str(vo_file)])
+            audio_indices["vo"] = current_input_idx
+            current_input_idx += 1
+            print(f"[VideoEditor] 🎙️ English AI Voiceover armed ({vo_preset}): {vo_file}")
 
     filter_graph = build_filter_graph(
         layout_mode=layout_mode,

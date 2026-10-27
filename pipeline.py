@@ -26,6 +26,7 @@ from modules.video_editor import render_short_video
 from modules.opencut_bridge import generate_opencut_project
 from modules.capcut_bridge import export_capcut_draft
 from modules.storage_cleaner import cleanup_old_shorts, get_storage_stats
+from modules.voice_studio import generate_scene_commentary_script, synthesize_voiceover
 
 
 class MinecraftShortsPipeline:
@@ -132,7 +133,29 @@ class MinecraftShortsPipeline:
             short_id = short_data["short_id"]
             out_folder = config.OUTPUT_DIR / f"{video_stem}_Short_{short_id}"
             out_video_path = out_folder / f"short_{short_id}.mp4"
+            out_folder.mkdir(parents=True, exist_ok=True)
             
+            # Ensure English Voiceover and Replace Settings are populated
+            if "enable_voiceover" not in short_data:
+                short_data["enable_voiceover"] = getattr(config, "ENABLE_AI_VOICEOVER", True)
+            if "voiceover_mode" not in short_data:
+                short_data["voiceover_mode"] = getattr(config, "VOICEOVER_MODE", "replace")
+            if "voiceover_preset" not in short_data or short_data["voiceover_preset"].startswith("hi_"):
+                short_data["voiceover_preset"] = getattr(config, "VOICEOVER_PRESET", "en_andrew_hype")
+
+            # Pre-synthesize English AI Voiceover so both CapCut draft and video render share the track
+            vo_file = out_folder / "ai_voiceover.mp3"
+            if short_data.get("enable_voiceover", True) and not vo_file.exists():
+                vo_script = short_data.get("voiceover_script") or ""
+                if not vo_script:
+                    vo_script = generate_scene_commentary_script(short_data, api_key=self.api_key)
+                    short_data["voiceover_script"] = vo_script
+                if vo_script:
+                    vo_p = short_data.get("voiceover_preset", "en_andrew_hype")
+                    synthesize_voiceover(vo_script, voice_key=vo_p, output_audio_path=str(vo_file))
+                    if vo_file.exists():
+                        short_data["voiceover_audio_path"] = str(vo_file)
+
             print(f"\n-------------------------------------------------------")
             print(f"[{idx}/{len(targets)}] Rendering Short #{short_id}")
             print(f"Highlight: {short_data.get('highlight_title')}")
@@ -187,8 +210,8 @@ def main():
     parser.add_argument("--clean", action="store_true", help="Delete all old video shorts and free disk space")
     parser.add_argument("--clean-all", action="store_true", help="Purge all shorts from the output library")
     parser.add_argument("--troll", choices=["auto", "classic", "phonk", "off"], default="auto", help="Trollface meme overlay style")
-    parser.add_argument("--voice-mode", choices=["original", "mix_ducked", "replace"], default="mix_ducked", help="Voiceover mode")
-    parser.add_argument("--voice", choices=["en_andrew_hype", "en_brian_viral", "en_chris_fast", "en_ryan_uk", "hi_gamer_pro"], default="en_andrew_hype", help="AI Voice preset")
+    parser.add_argument("--voice-mode", choices=["original", "mix_ducked", "replace"], default="replace", help="Voiceover mode (replace=mute original Hindi voice, add English AI voice)")
+    parser.add_argument("--voice", choices=["en_andrew_hype", "en_brian_viral", "en_chris_fast", "en_ryan_uk", "en_guy_epic", "en_eric_hype"], default="en_andrew_hype", help="AI Voice preset (English Streamers)")
     
     args = parser.parse_args()
 

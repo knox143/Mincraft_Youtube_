@@ -73,6 +73,10 @@ def export_capcut_draft(
     
     current_time_us = 0
     
+    # Check Voice Mode: If replace, mute original video's audio (e.g. original Hindi speech)
+    vo_mode = short_info.get("voiceover_mode", getattr(config, "VOICEOVER_MODE", "replace"))
+    orig_vol = 0.0 if vo_mode == "replace" else (0.35 if vo_mode == "mix_ducked" else 1.0)
+
     # Add Hook Teaser if enabled
     if enable_hook:
         hook_start_us = min(max(0, int((start_sec + hook_offset_sec) * CAPCUT_TIME_UNIT)), max(0, mat_dur_us - 100_000))
@@ -80,7 +84,8 @@ def export_capcut_draft(
         hook_seg = VideoSegment(
             v_mat,
             Timerange(0, hook_dur_us),
-            source_timerange=Timerange(hook_start_us, hook_dur_us)
+            source_timerange=Timerange(hook_start_us, hook_dur_us),
+            volume=orig_vol
         )
         # 145% zoom (1.45 scale) centered on crosshair
         hook_seg.clip_settings.scale_x = 1.45
@@ -94,7 +99,8 @@ def export_capcut_draft(
     main_seg = VideoSegment(
         v_mat,
         Timerange(current_time_us, main_dur_us),
-        source_timerange=Timerange(main_start_us, main_dur_us)
+        source_timerange=Timerange(main_start_us, main_dur_us),
+        volume=orig_vol
     )
     main_seg.clip_settings.scale_x = 1.45
     main_seg.clip_settings.scale_y = 1.45
@@ -109,7 +115,8 @@ def export_capcut_draft(
         hud_seg = VideoSegment(
             v_mat,
             Timerange(0, hud_dur_us),
-            source_timerange=Timerange(main_start_us, hud_dur_us)
+            source_timerange=Timerange(main_start_us, hud_dur_us),
+            volume=0.0
         )
         # Scale and position HUD above subtitles
         hud_seg.clip_settings.scale_x = 1.30
@@ -169,6 +176,26 @@ def export_capcut_draft(
             )
             sfx_seg.volume = 1.30
             script.add_segment(sfx_seg, track_name="SFX_Troll")
+
+        # 4d. English AI Streamer Voiceover Track
+        vo_path = short_info.get("voiceover_audio_path")
+        if not vo_path or not os.path.exists(vo_path):
+            candidate_vo = Path(output_draft_dir).parent / "ai_voiceover.mp3"
+            if candidate_vo.exists():
+                vo_path = str(candidate_vo)
+
+        if vo_path and os.path.exists(vo_path):
+            script.add_track(TrackType.audio, track_name="AI_English_Voiceover")
+            vo_mat = AudioMaterial(str(vo_path))
+            vo_dur_us = min(total_duration_us, max(100_000, vo_mat.duration))
+            vo_seg = AudioSegment(
+                vo_mat,
+                Timerange(0, total_duration_us),
+                source_timerange=Timerange(0, vo_dur_us)
+            )
+            vo_seg.volume = 1.35
+            script.add_segment(vo_seg, track_name="AI_English_Voiceover")
+            print(f"[CapCutBridge] Added AI English Voiceover track to draft: {vo_path}")
     except Exception as e:
         print(f"[CapCutBridge] Troll / Audio FX track note: {type(e).__name__}: {e}")
 

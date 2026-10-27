@@ -41,10 +41,16 @@ VOICE_PRESETS = {
         "rate": "+22%",
         "pitch": "+1Hz"
     },
-    "hi_gamer_pro": {
-        "name": "Madhur (Hindi Pro Gamer)",
-        "edge_voice": "hi-IN-MadhurNeural",
+    "en_guy_epic": {
+        "name": "Guy (US Epic Action Streamer)",
+        "edge_voice": "en-US-GuyNeural",
         "rate": "+22%",
+        "pitch": "+0Hz"
+    },
+    "en_eric_hype": {
+        "name": "Eric (US Energetic Fast Reviewer)",
+        "edge_voice": "en-US-EricNeural",
+        "rate": "+24%",
         "pitch": "+1Hz"
     }
 }
@@ -72,15 +78,16 @@ Write an ULTRA HIGH RETENTION, ENERGETIC ENGLISH YouTube Shorts commentary for t
 - Hook: {hook}
 - Clip Duration: {duration} seconds
 - Scene Type: {"Surprise Troll / Funny Fail Moment" if is_troll else "Insane Clutch Play"}
-- Language: Fast, casual, authentic ENGLISH (like a real excited streamer on Twitch/YouTube).
+- Language: 100% FLUENT CASUAL ENGLISH ONLY (like a real hyped streamer on YouTube/Twitch, e.g. TommyInnit or Camman18).
 - Tone: Hype, punchy, conversational, and energetic. Absolutely NO robotic or textbook phrases!
 
-Rules:
-1. Pacing & Punctuation: Use natural speech with hyphens and exclamation marks so the voice synthesizes with real human excitement!
-2. Hook: Start immediately with curiosity: "Bro really thought he was safe...", "Wait, look at this Creeper right here...", or "No way this just happened!"
-3. Climax: Build fast suspense ending with: "Wait for it... BOOM!" or "And then THIS happened!"
-4. Length: Exactly 18 to 28 words total (snappy, fast, 0% boring delay).
-5. Return ONLY the plain spoken English words without quotes, brackets, or emojis.
+CRITICAL INSTRUCTIONS:
+1. Language Requirement: Must be 100% ENGLISH. Strictly DO NOT use any Hindi, Urdu, or Hinglish words (no 'bhai', 'dekho', 'yaar', etc.).
+2. Pacing & Punctuation: Use natural speech with hyphens and exclamation marks so the voice synthesizes with real human excitement!
+3. Hook: Start immediately with curiosity: "Bro really thought he was safe...", "Wait, look at this Creeper right here...", or "No way this just happened!"
+4. Climax: Build fast suspense ending with: "Wait for it... BOOM!" or "And then THIS happened!"
+5. Length: Exactly 18 to 28 words total (snappy, fast, 0% boring delay).
+6. Return ONLY the plain spoken English words without quotes, brackets, or emojis.
 """
     ai_resp = call_gemini_api(prompt, api_key=api_key)
     script = ""
@@ -92,8 +99,13 @@ Rules:
         except Exception:
             script = ""
 
-    # High-retention English gaming fallbacks if offline
-    if not script or len(script) < 10 or ("bhai" in script.lower() and language == "english"):
+    # Check for any Hindi/Devanagari characters or common Hindi words
+    has_devanagari = any('\u0900' <= char <= '\u097F' for char in script)
+    hindi_keywords = ["bhai", "yaar", "dekho", "kya", "maine", "aur", "toh", "kaise", "apna", "mein", "hum", "yeh", "woh", "kar", "gaya"]
+    has_hindi_word = any(w in script.lower().split() for w in hindi_keywords)
+
+    # High-retention English gaming fallbacks if offline or Hindi detected
+    if not script or len(script) < 10 or has_devanagari or has_hindi_word:
         if is_troll:
             script = "Bro really thought he was completely invincible right here! But wait till you see what snuck up behind him! WAIT FOR IT!"
         else:
@@ -140,7 +152,9 @@ def synthesize_voiceover(
         pass  # VoiceStudio not running locally, seamlessly fallback to Edge-TTS
 
     # 2. High-Quality Edge Neural TTS Engine (Free, built-in, fast)
-    preset = VOICE_PRESETS.get(voice_key, VOICE_PRESETS["en_andrew_hype"])
+    if not voice_key or voice_key not in VOICE_PRESETS or voice_key.startswith("hi_"):
+        voice_key = "en_andrew_hype"
+    preset = VOICE_PRESETS[voice_key]
     edge_voice = preset.get("edge_voice", "en-US-AndrewMultilingualNeural")
     rate = preset.get("rate", getattr(config, "VOICEOVER_SPEED", "+24%"))
     pitch = preset.get("pitch", "+1Hz")

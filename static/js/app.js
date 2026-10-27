@@ -144,7 +144,7 @@ async function renderShortsBatch(selectedIds = null) {
   
   const trollSelect = document.getElementById("trollEffectSelect");
   const trollStyle = trollSelect ? trollSelect.value : "auto";
-  const voiceMode = document.getElementById("voiceModeSelect") ? document.getElementById("voiceModeSelect").value : "mix_ducked";
+  const voiceMode = document.getElementById("voiceModeSelect") ? document.getElementById("voiceModeSelect").value : "replace";
   const voicePreset = document.getElementById("voicePresetSelect") ? document.getElementById("voicePresetSelect").value : "en_andrew_hype";
   const enableBgm = document.getElementById("enableBgmCheck") ? document.getElementById("enableBgmCheck").checked : true;
   const enableSfx = document.getElementById("enableSfxCheck") ? document.getElementById("enableSfxCheck").checked : true;

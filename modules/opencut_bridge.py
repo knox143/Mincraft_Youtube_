@@ -157,6 +157,7 @@ def generate_opencut_project(
     ]
     
     # 3b. English AI Voiceover Track
+    total_project_duration_ticks = hook_ticks + clip_ticks
     audio_tracks = []
     vo_path = short_info.get("voiceover_audio_path")
     if not vo_path:
@@ -181,7 +182,6 @@ def generate_opencut_project(
         })
 
     # 4. Construct OpenCut Project Schema
-    total_project_duration_ticks = hook_ticks + clip_ticks
     scene_id = f"scene-{uuid.uuid4().hex[:6]}"
     
     project = {
